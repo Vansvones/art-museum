@@ -1,0 +1,1391 @@
+require('dotenv').config();
+
+const express = require('express');
+const cors = require('cors');
+const mysql = require('mysql2/promise');
+const bcrypt = require('bcrypt');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true
+}));
+
+app.use(express.json());
+app.use(require('cookie-parser')());
+
+const jwt = require('jsonwebtoken');
+
+function requireAuth(req, res, next) {
+  const token = req.cookies?.museum_token;
+
+  if (!token) {
+    return res.status(401).json({ error: 'Please log in.' });
+  }
+
+  try {
+    req.user = jwt.verify(token, process.env.AUTH_TOKEN_SECRET);
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: 'Invalid or expired session.' });
+  }
+}
+
+function requireAdmin(req, res, next) {
+  if (!req.user || req.user.role !== 'ADMIN') {
+    return res.status(403).json({ error: 'Admin access required.' });
+  }
+
+  next();
+}
+
+const db = mysql.createPool({
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT),
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
+
+// Home route
+app.get('/', (req, res) => {
+  res.send('Museum backend is running!');
+});
+
+// Register
+
+app.post('/api/auth/register', async (req, res) => {
+  const connection = await db.getConnection();
+
+  try {
+    if (!process.env.AUTH_TOKEN_SECRET) {
+      return res.status(500).json({
+        error: 'Authentication is not configured.'
+      });
+    }
+
+    const name = String(req.body.name || '').trim();
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const password = req.body.password;
+
+    const nameParts = name.split(/\s+/).filter(Boolean);
+
+    if (nameParts.length < 2) {
+      return res.status(400).json({
+        error: 'Please enter your first and last name.'
+      });
+    }
+
+    if (nameParts[0].length > 30 ||
+        nameParts[nameParts.length - 1].length > 30) {
+      return res.status(400).json({
+        error: 'First and last names must be 30 characters or fewer.'
+      });
+    }
+
+    if (!email || email.length > 255 ||
+        typeof password !== 'string' || password.length < 8) {
+      return res.status(400).json({
+        error: 'Enter a valid email and a password of at least 8 characters.'
+      });
+    }
+
+    const [existing] = await connection.execute(
+      'SELECT UserID FROM USER_ACCOUNT WHERE Email = ?',
+      [email]
+    );
+
+    if (existing.length > 0) {
+      return res.status(409).json({
+        error: 'An account with this email already exists.'
+      });
+    }
+
+    const firstName = nameParts[0];
+    const lastName = nameParts[nameParts.length - 1];
+    const middleName = nameParts.length > 2
+      ? nameParts.slice(1, -1).join(' ')
+      : null;
+
+    if (middleName && middleName.length > 30) {
+      return res.status(400).json({
+        error: 'Middle name is too long.'
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    await connection.beginTransaction();
+
+    const [visitorIDs] = await connection.query(
+      'SELECT COALESCE(MAX(VisitorID), 0) + 1 AS nextID FROM VISITOR FOR UPDATE'
+    );
+
+    const visitorID = visitorIDs[0].nextID;
+
+    await connection.execute(
+      `INSERT INTO VISITOR
+       (VisitorID, FirstName, MiddleName, LastName, Email)
+       VALUES (?, ?, ?, ?, ?)`,
+      [visitorID, firstName, middleName, lastName, email]
+    );
+
+    await connection.execute(
+      `INSERT INTO USER_ACCOUNT
+       (VisitorID, Email, PasswordHash, AccountRole)
+       VALUES (?, ?, ?, 'VISITOR')`,
+      [visitorID, email, passwordHash]
+    );
+
+    await connection.commit();
+
+    res.status(201).json({
+      message: 'Account created successfully.'
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Registration error:', error.message);
+
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({
+        error: 'An account with this email already exists.'
+      });
+    }
+
+    res.status(500).json({
+      error: 'Registration failed. Please try again.'
+    });
+  } finally {
+    connection.release();
+  }
+});
+
+
+// Log in
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    if (!process.env.AUTH_TOKEN_SECRET) {
+      return res.status(500).json({ error: 'Authentication is not configured.' });
+    }
+
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const password = req.body.password;
+
+    if (!email || typeof password !== 'string' || !password) {
+      return res.status(400).json({ error: 'Email and password are required.' });
+    }
+
+    const [rows] = await db.execute(
+      `SELECT UserID, VisitorID, Email, PasswordHash, AccountRole
+       FROM USER_ACCOUNT
+       WHERE Email = ?
+       LIMIT 1`,
+      [email]
+    );
+
+    if (
+      rows.length === 0 ||
+      !(await bcrypt.compare(password, rows[0].PasswordHash))
+    ) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+
+    const account = rows[0];
+
+    const token = jwt.sign(
+      {
+        userId: account.UserID,
+        VisitorID: account.VisitorID,
+        email: account.Email,
+        role: account.AccountRole
+      },
+      process.env.AUTH_TOKEN_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    res.cookie('museum_token', token, {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 1000
+    });
+
+    res.json({
+      user: {
+        id: account.UserID,
+        email: account.Email,
+        role: account.AccountRole
+      }
+    });
+  } catch (error) {
+    console.error('Login error:', error.message);
+    res.status(500).json({ error: 'Login failed.' });
+  }
+});
+
+// Check the current session
+app.get('/api/auth/me', requireAuth, (req, res) => {
+  res.json({ user: req.user });
+});
+
+// Log out
+app.post('/api/auth/logout', (req, res) => {
+  res.clearCookie('museum_token', {
+    httpOnly: true,
+    secure: false,
+    sameSite: 'lax',
+    path: '/'
+  });
+
+  res.json({ message: 'Logged out successfully.' });
+});
+
+// Test route
+app.get('/test-route', (req, res) => {
+  res.send('This is the updated server');
+});
+
+// API health check
+app.get('/api/health', (req, res) => {
+  res.json({ message: 'Museum API is working!' });
+});
+
+// Database health check
+app.get('/api/db-health', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT 1 AS connected');
+
+    res.json({
+      message: 'Connected to the museum database!',
+      database: rows[0].connected === 1
+    });
+  } catch (error) {
+    console.error('Database connection failed:', error.message);
+    res.status(500).json({
+      message: 'Database connection failed.'
+    });
+  }
+});
+
+// Check the database and ARTWORK columns
+app.get('/api/check-artwork-columns', async (req, res) => {
+  try {
+    const [database] = await db.query('SELECT DATABASE() AS name');
+    const [columns] = await db.query('DESCRIBE ARTWORK');
+
+    res.json({
+      database: database[0].name,
+      columns: columns.map(column => column.Field)
+    });
+  } catch (error) {
+    console.error('Error checking artwork columns:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all artists
+app.get('/api/artists', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM ARTIST');
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching artists:', error.message);
+    res.status(500).json({ error: 'Failed to fetch artists' });
+  }
+});
+
+// Add a new artist
+app.post('/api/artists', requireAuth, requireAdmin, async (req, res) => {
+  const {
+    ArtistID,
+    FirstName,
+    MiddleName,
+    LastName,
+    Nationality,
+    BirthDate,
+    DeathDate
+  } = req.body;
+
+  if (!ArtistID || !FirstName?.trim() || !LastName?.trim()) {
+    return res.status(400).json({
+      error: 'Artist ID, first name, and last name are required'
+    });
+  }
+
+  try {
+    await db.query(
+      `INSERT INTO ARTIST
+       (ArtistID, FirstName, MiddleName, LastName, Nationality, BirthDate, DeathDate)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        ArtistID,
+        FirstName.trim(),
+        MiddleName?.trim() || null,
+        LastName.trim(),
+        Nationality?.trim() || null,
+        BirthDate || null,
+        DeathDate || null
+      ]
+    );
+
+    res.status(201).json({ message: 'Artist added successfully' });
+  } catch (error) {
+    console.error('Error adding artist:', error.message);
+    res.status(500).json({ error: 'Failed to add artist' });
+  }
+});
+
+// Update an existing artist
+app.put('/api/artists/:id', requireAuth, requireAdmin, async (req, res) => {
+  const {
+    FirstName,
+    MiddleName,
+    LastName,
+    Nationality,
+    BirthDate,
+    DeathDate
+  } = req.body;
+
+  if (!FirstName?.trim() || !LastName?.trim()) {
+    return res.status(400).json({
+      error: 'First name and last name are required'
+    });
+  }
+
+  try {
+    const [result] = await db.query(
+      `UPDATE ARTIST
+       SET FirstName = ?, MiddleName = ?, LastName = ?,
+           Nationality = ?, BirthDate = ?, DeathDate = ?
+       WHERE ArtistID = ?`,
+      [
+        FirstName.trim(),
+        MiddleName?.trim() || null,
+        LastName.trim(),
+        Nationality?.trim() || null,
+        BirthDate || null,
+        DeathDate || null,
+        req.params.id
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Artist not found' });
+    }
+
+    res.json({ message: 'Artist updated successfully' });
+  } catch (error) {
+    console.error('Error updating artist:', error.message);
+    res.status(500).json({ error: 'Failed to update artist' });
+  }
+});
+
+// Delete an artist
+app.delete('/api/artists/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const [result] = await db.query(
+      'DELETE FROM ARTIST WHERE ArtistID = ?',
+      [req.params.id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Artist not found' });
+    }
+
+    res.json({ message: 'Artist deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting artist:', error.message);
+    res.status(500).json({ error: 'Failed to delete artist' });
+  }
+});
+
+
+// Get all artworks, returning only the year to the frontend
+app.get('/api/artworks', async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT
+        ArtworkID,
+        Name,
+        Description,
+        Type,
+        Origin,
+        YEAR(CreationDate) AS CreationYear
+      FROM ARTWORK
+    `);
+
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching artworks:', error.message);
+    res.status(500).json({ error: 'Failed to fetch artworks' });
+  }
+});
+
+// Get all exhibitions
+app.get('/api/exhibitions', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM EXHIBITION');
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching exhibitions:', error.message);
+    res.status(500).json({ error: 'Failed to fetch exhibitions' });
+  }
+});
+
+// Add a new exhibition
+app.post('/api/exhibitions', requireAuth, requireAdmin, async (req, res) => {
+  const {
+    ExhibitionID,
+    Name,
+    Description,
+    StartDate,
+    EndDate,
+    ExhibitionType,
+    GalleryID,
+    ManagerID
+  } = req.body;
+
+  console.log('Exhibition request:', req.body);
+  console.log('GalleryID received:', req.body.GalleryID);
+  console.log('ManagerID received:', req.body.ManagerID);
+
+  if (!ExhibitionID || !Name?.trim() || !ExhibitionType?.trim()) {
+    return res.status(400).json({
+      error: 'Exhibition ID, name, and exhibition type are required'
+    });
+  }
+
+  try {
+    await db.query(
+      `INSERT INTO EXHIBITION
+       (ExhibitionID, Name, Description, StartDate, EndDate,
+        ExhibitionType, GalleryID, ManagerID)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        ExhibitionID,
+        Name.trim(),
+        Description?.trim() || null,
+        StartDate || null,
+        EndDate || null,
+        ExhibitionType.trim(),
+        GalleryID || null,
+        ManagerID || null
+      ]
+    );
+
+    res.status(201).json({ message: 'Exhibition added successfully' });
+  } catch (error) {
+    console.error('Error adding exhibition:', error.message);
+    res.status(500).json({ error: 'Failed to add exhibition' });
+  }
+});
+
+// Update an exhibition
+app.put('/api/exhibitions/:id', requireAuth, requireAdmin, async (req, res) => {
+  const {
+    Name,
+    Description,
+    StartDate,
+    EndDate,
+    ExhibitionType,
+    GalleryID,
+    ManagerID
+  } = req.body;
+
+  if (!Name?.trim() || !ExhibitionType?.trim()) {
+    return res.status(400).json({
+      error: 'Name and exhibition type are required'
+    });
+  }
+
+  try {
+    const [result] = await db.query(
+      `UPDATE EXHIBITION
+       SET Name = ?, Description = ?, StartDate = ?, EndDate = ?,
+           ExhibitionType = ?, GalleryID = ?, ManagerID = ?
+       WHERE ExhibitionID = ?`,
+      [
+        Name.trim(),
+        Description?.trim() || null,
+        StartDate || null,
+        EndDate || null,
+        ExhibitionType.trim(),
+        GalleryID || null,
+        ManagerID || null,
+        req.params.id
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Exhibition not found' });
+    }
+
+    res.json({ message: 'Exhibition updated successfully' });
+  } catch (error) {
+    console.error('Error updating exhibition:', error.message);
+    res.status(500).json({ error: 'Failed to update exhibition' });
+  }
+});
+
+// Delete an exhibition
+app.delete('/api/exhibitions/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const [result] = await db.query(
+      'DELETE FROM EXHIBITION WHERE ExhibitionID = ?',
+      [req.params.id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Exhibition not found' });
+    }
+
+    res.json({ message: 'Exhibition deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting exhibition:', error.message);
+    res.status(500).json({ error: 'Failed to delete exhibition' });
+  }
+});
+
+// Get all galleries
+app.get('/api/galleries', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM GALLERY')
+    res.json(rows)
+  } catch (error) {
+    console.error('Error fetching galleries:', error.message)
+    res.status(500).json({ error: 'Failed to fetch galleries' })
+  }
+})
+
+// Add a gallery
+app.post('/api/galleries', requireAuth, requireAdmin, async (req, res) => {
+  const { GalleryID, Name, Location, Description } = req.body
+
+  if (!GalleryID || !Name?.trim()) {
+    return res.status(400).json({
+      error: 'Gallery ID and name are required'
+    })
+  }
+
+  try {
+    await db.query(
+      `INSERT INTO GALLERY (GalleryID, Name, Location, Description)
+       VALUES (?, ?, ?, ?)`,
+      [
+        GalleryID,
+        Name.trim(),
+        Location?.trim() || null,
+        Description?.trim() || null
+      ]
+    )
+
+    res.status(201).json({ message: 'Gallery added successfully' })
+  } catch (error) {
+    console.error('Error adding gallery:', error.message)
+    res.status(500).json({ error: 'Failed to add gallery' })
+  }
+})
+
+// Update a gallery
+app.put('/api/galleries/:id', requireAuth, requireAdmin, async (req, res) => {
+  const { Name, Location, Description } = req.body
+
+  if (!Name?.trim()) {
+    return res.status(400).json({ error: 'Gallery name is required' })
+  }
+
+  try {
+    const [result] = await db.query(
+      `UPDATE GALLERY
+       SET Name = ?, Location = ?, Description = ?
+       WHERE GalleryID = ?`,
+      [
+        Name.trim(),
+        Location?.trim() || null,
+        Description?.trim() || null,
+        req.params.id
+      ]
+    )
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Gallery not found' })
+    }
+
+    res.json({ message: 'Gallery updated successfully' })
+  } catch (error) {
+    console.error('Error updating gallery:', error.message)
+    res.status(500).json({ error: 'Failed to update gallery' })
+  }
+})
+
+// Delete a gallery
+app.delete('/api/galleries/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const [result] = await db.query(
+      'DELETE FROM GALLERY WHERE GalleryID = ?',
+      [req.params.id]
+    )
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Gallery not found' })
+    }
+
+    res.json({ message: 'Gallery deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting gallery:', error.message)
+    res.status(500).json({
+      error: 'Failed to delete gallery. It may be referenced by an exhibition.'
+    })
+  }
+})
+
+// Add a new artwork
+app.post('/api/artworks', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const {
+      ArtworkID,
+      Name,
+      Description,
+      Type,
+      Origin,
+      CreationYear
+    } = req.body;
+
+    if (ArtworkID == null || !Name || Name.trim() === '') {
+      return res.status(400).json({
+        error: 'ArtworkID and Name are required'
+      });
+    }
+
+    const year = CreationYear === '' || CreationYear == null
+      ? null
+      : Number(CreationYear);
+
+    if (year !== null && (!Number.isInteger(year) || year < 1 || year > 9999)) {
+      return res.status(400).json({
+        error: 'CreationYear must be a valid year'
+      });
+    }
+
+    const creationDate = year === null
+      ? null
+      : `${String(year).padStart(4, '0')}-01-01`;
+
+    await db.query(
+      `INSERT INTO ARTWORK
+       (ArtworkID, Name, Description, Type, Origin, CreationDate)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        ArtworkID,
+        Name.trim(),
+        Description || null,
+        Type || null,
+        Origin || null,
+        creationDate
+      ]
+    );
+
+    res.status(201).json({
+      message: 'Artwork added successfully'
+    });
+  } catch (error) {
+    console.error('Error adding artwork:', error.message);
+    res.status(500).json({ error: 'Failed to add artwork' });
+  }
+});
+
+// Update an existing artwork
+app.put('/api/artworks/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const {
+      Name,
+      Description,
+      Type,
+      Origin,
+      CreationYear
+    } = req.body;
+
+    if (!Name || Name.trim() === '') {
+      return res.status(400).json({
+        error: 'Name is required'
+      });
+    }
+
+    const year = CreationYear === '' || CreationYear == null
+      ? null
+      : Number(CreationYear);
+
+    if (year !== null && (!Number.isInteger(year) || year < 1 || year > 9999)) {
+      return res.status(400).json({
+        error: 'CreationYear must be a valid year'
+      });
+    }
+
+    const creationDate = year === null
+      ? null
+      : `${String(year).padStart(4, '0')}-01-01`;
+
+    const [result] = await db.query(
+      `UPDATE ARTWORK
+       SET Name = ?, Description = ?, Type = ?, Origin = ?, CreationDate = ?
+       WHERE ArtworkID = ?`,
+      [
+        Name.trim(),
+        Description || null,
+        Type || null,
+        Origin || null,
+        creationDate,
+        req.params.id
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      const [rows] = await db.query(
+        'SELECT ArtworkID FROM ARTWORK WHERE ArtworkID = ?',
+        [req.params.id]
+      );
+
+      if (rows.length === 0) {
+        return res.status(404).json({
+          error: 'Artwork not found'
+        });
+      }
+    }
+
+    res.json({
+      message: 'Artwork updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating artwork:', error.message);
+    res.status(500).json({ error: 'Failed to update artwork' });
+  }
+});
+
+// Delete an artwork
+app.delete('/api/artworks/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const [result] = await db.query(
+      'DELETE FROM ARTWORK WHERE ArtworkID = ?',
+      [req.params.id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        error: 'Artwork not found'
+      });
+    }
+
+    res.json({
+      message: 'Artwork deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting artwork:', error.message);
+    res.status(500).json({ error: 'Failed to delete artwork' });
+  }
+});
+
+// Get all employees
+app.get('/api/employees', async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      'SELECT * FROM EMPLOYEE ORDER BY EmployeeID'
+    )
+    res.json(rows)
+  } catch (error) {
+    console.error('Error fetching employees:', error.message)
+    res.status(500).json({ error: 'Failed to fetch employees' })
+  }
+})
+
+// Add an employee
+app.post('/api/employees', requireAuth, requireAdmin, async (req, res) => {
+  const {
+    EmployeeID, FirstName, MiddleName, LastName, SSN,
+    Street, City, State, ZIPCode, Phone, Email,
+    Salary, Sex, BirthDate, SupervisorID
+  } = req.body
+
+  if (!EmployeeID || !FirstName?.trim() || !LastName?.trim()) {
+    return res.status(400).json({
+      error: 'Employee ID, first name, and last name are required'
+    })
+  }
+
+  try {
+    await db.query(
+      `INSERT INTO EMPLOYEE (
+        EmployeeID, FirstName, MiddleName, LastName, SSN,
+        Street, City, State, ZIPCode, Phone, Email,
+        Salary, Sex, BirthDate, SupervisorID
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        EmployeeID,
+        FirstName.trim(),
+        MiddleName?.trim() || null,
+        LastName.trim(),
+        SSN?.trim() || null,
+        Street?.trim() || null,
+        City?.trim() || null,
+        State?.trim() || null,
+        ZIPCode?.trim() || null,
+        Phone?.trim() || null,
+        Email?.trim() || null,
+        Salary === '' || Salary == null ? null : Salary,
+        Sex || null,
+        BirthDate || null,
+        SupervisorID === '' || SupervisorID == null ? null : SupervisorID
+      ]
+    )
+
+    res.status(201).json({ message: 'Employee added successfully' })
+  } catch (error) {
+    console.error('Error adding employee:', error.message)
+    res.status(500).json({
+      error: 'Failed to add employee. Check that the employee ID is unique and the supervisor exists.'
+    })
+  }
+})
+
+// Update an employee
+app.put('/api/employees/:id', requireAuth, requireAdmin, async (req, res) => {
+  const {
+    FirstName, MiddleName, LastName, SSN,
+    Street, City, State, ZIPCode, Phone, Email,
+    Salary, Sex, BirthDate, SupervisorID
+  } = req.body
+
+  if (!FirstName?.trim() || !LastName?.trim()) {
+    return res.status(400).json({
+      error: 'First name and last name are required'
+    })
+  }
+
+  try {
+    const [result] = await db.query(
+      `UPDATE EMPLOYEE SET
+        FirstName = ?, MiddleName = ?, LastName = ?, SSN = ?,
+        Street = ?, City = ?, State = ?, ZIPCode = ?, Phone = ?,
+        Email = ?, Salary = ?, Sex = ?, BirthDate = ?, SupervisorID = ?
+       WHERE EmployeeID = ?`,
+      [
+        FirstName.trim(),
+        MiddleName?.trim() || null,
+        LastName.trim(),
+        SSN?.trim() || null,
+        Street?.trim() || null,
+        City?.trim() || null,
+        State?.trim() || null,
+        ZIPCode?.trim() || null,
+        Phone?.trim() || null,
+        Email?.trim() || null,
+        Salary === '' || Salary == null ? null : Salary,
+        Sex || null,
+        BirthDate || null,
+        SupervisorID === '' || SupervisorID == null ? null : SupervisorID,
+        req.params.id
+      ]
+    )
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Employee not found' })
+    }
+
+    res.json({ message: 'Employee updated successfully' })
+  } catch (error) {
+    console.error('Error updating employee:', error.message)
+    res.status(500).json({
+      error: 'Failed to update employee. Check that the supervisor exists.'
+    })
+  }
+})
+
+// Delete an employee
+app.delete('/api/employees/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const [result] = await db.query(
+      'DELETE FROM EMPLOYEE WHERE EmployeeID = ?',
+      [req.params.id]
+    )
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Employee not found' })
+    }
+
+    res.json({ message: 'Employee deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting employee:', error.message)
+    res.status(500).json({
+      error: 'Failed to delete employee. Another record may reference this employee.'
+    })
+  }
+})
+
+
+/* =========================
+   TICKET ROUTES
+========================= */
+
+// Get tickets with visitor and exhibition names
+app.get('/api/tickets', async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT
+        T.TicketID,
+        T.PurchaseDate,
+        T.VisitDate,
+        T.Price,
+        T.Type,
+        T.VisitorID,
+        T.ExhibitionID,
+        T.GeneralAdmissionTicketID,
+        V.FirstName,
+        V.LastName,
+        E.Name AS ExhibitionName
+      FROM TICKET T
+      JOIN VISITOR V ON T.VisitorID = V.VisitorID
+      LEFT JOIN EXHIBITION E ON T.ExhibitionID = E.ExhibitionID
+      ORDER BY T.TicketID
+    `)
+
+    res.json(rows)
+  } catch (error) {
+    console.error('Error fetching tickets:', error.message)
+    res.status(500).json({ error: 'Failed to fetch tickets' })
+  }
+})
+
+// Get visitors for the ticket form
+app.get('/api/ticket-options/visitors', async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT VisitorID, FirstName, LastName
+      FROM VISITOR
+      ORDER BY LastName, FirstName
+    `)
+
+    res.json(rows)
+  } catch (error) {
+    console.error('Error fetching ticket visitors:', error.message)
+    res.status(500).json({ error: 'Failed to load visitors' })
+  }
+})
+
+// Get exhibitions for the ticket form
+app.get('/api/ticket-options/exhibitions', async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT ExhibitionID, Name
+      FROM EXHIBITION
+      ORDER BY Name
+    `)
+
+    res.json(rows)
+  } catch (error) {
+    console.error('Error fetching ticket exhibitions:', error.message)
+    res.status(500).json({ error: 'Failed to load exhibitions' })
+  }
+})
+
+// Add a ticket
+app.post('/api/tickets', requireAuth, requireAdmin, async (req, res) => {
+  const {
+    TicketID,
+    PurchaseDate,
+    VisitDate,
+    Price,
+    Type,
+    VisitorID,
+    ExhibitionID,
+    GeneralAdmissionTicketID
+  } = req.body
+
+  if (
+    TicketID == null ||
+    TicketID === '' ||
+    !Type?.trim() ||
+    VisitorID == null ||
+    VisitorID === ''
+  ) {
+    return res.status(400).json({
+      error: 'Ticket ID, type, and visitor are required'
+    })
+  }
+
+  try {
+    await db.query(
+      `INSERT INTO TICKET (
+        TicketID, PurchaseDate, VisitDate, Price, Type,
+        VisitorID, ExhibitionID, GeneralAdmissionTicketID
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        TicketID,
+        PurchaseDate || null,
+        VisitDate || null,
+        Price === '' || Price == null ? null : Price,
+        Type.trim(),
+        VisitorID,
+        ExhibitionID === '' || ExhibitionID == null ? null : ExhibitionID,
+        GeneralAdmissionTicketID === '' || GeneralAdmissionTicketID == null
+          ? null
+          : GeneralAdmissionTicketID
+      ]
+    )
+
+    res.status(201).json({ message: 'Ticket added successfully' })
+  } catch (error) {
+    console.error('Error adding ticket:', error.message)
+    res.status(500).json({
+      error: 'Failed to add ticket. Check the ticket ID and related records.'
+    })
+  }
+})
+
+
+app.post('/api/tickets/purchase', requireAuth, async (req, res) => {
+  const visitorID = req.user.VisitorID;
+  const { Type, VisitDate, Quantity, ExhibitionID } = req.body;
+
+  if (req.user.role !== 'VISITOR' || !visitorID) {
+    return res.status(403).json({
+      error: 'A visitor account is required to purchase tickets.'
+    });
+  }
+
+  if (!['General Admission', 'Single Exhibition'].includes(Type)) {
+    return res.status(400).json({ error: 'Invalid ticket type.' });
+  }
+
+  if (
+    typeof VisitDate !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(VisitDate) ||
+    !Number.isInteger(Quantity) ||
+    Quantity < 1 ||
+    Quantity > 10
+  ) {
+    return res.status(400).json({
+      error: 'Choose a valid visit date and quantity between 1 and 10.'
+    });
+  }
+
+  if (VisitDate < new Date().toISOString().slice(0, 10)) {
+    return res.status(400).json({
+      error: 'Visit date cannot be in the past.'
+    });
+  }
+
+  const price = Type === 'General Admission' ? 18.00 : 12.00;
+  const connection = await db.getConnection();
+
+  try {
+    if (Type === 'Single Exhibition') {
+      if (!Number.isInteger(Number(ExhibitionID))) {
+        return res.status(400).json({
+          error: 'Please select an exhibition.'
+        });
+      }
+
+      const [exhibitions] = await connection.query(
+        'SELECT ExhibitionID FROM EXHIBITION WHERE ExhibitionID = ?',
+        [Number(ExhibitionID)]
+      );
+
+      if (exhibitions.length === 0) {
+        return res.status(400).json({
+          error: 'The selected exhibition does not exist.'
+        });
+      }
+    }
+
+    await connection.beginTransaction();
+
+    const ticketIDs = [];
+
+    for (let i = 0; i < Quantity; i++) {
+      let generalAdmissionTicketID = null;
+
+      // The current database constraint requires every single-exhibition
+      // ticket to reference a general-admission ticket.
+      if (Type === 'Single Exhibition') {
+        const [generalResult] = await connection.query(
+          `INSERT INTO TICKET
+           (PurchaseDate, VisitDate, Price, Type, VisitorID,
+            ExhibitionID, GeneralAdmissionTicketID)
+           VALUES (CURDATE(), ?, 18.00, 'General Admission', ?, NULL, NULL)`,
+          [VisitDate, visitorID]
+        );
+
+        generalAdmissionTicketID = generalResult.insertId;
+      }
+
+      const [result] = await connection.query(
+        `INSERT INTO TICKET
+         (PurchaseDate, VisitDate, Price, Type, VisitorID,
+          ExhibitionID, GeneralAdmissionTicketID)
+         VALUES (CURDATE(), ?, ?, ?, ?, ?, ?)`,
+        [
+          VisitDate,
+          price,
+          Type,
+          visitorID,
+          Type === 'Single Exhibition' ? Number(ExhibitionID) : null,
+          generalAdmissionTicketID
+        ]
+      );
+
+      ticketIDs.push(result.insertId);
+    }
+
+    await connection.commit();
+
+    res.status(201).json({
+      message: 'Ticket purchase recorded successfully.',
+      ticketIDs,
+      quantity: Quantity,
+      total: Number((price * Quantity).toFixed(2))
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Ticket purchase failed:', error.message);
+    res.status(500).json({
+      error: 'Could not complete the ticket purchase.'
+    });
+  } finally {
+    connection.release();
+  }
+});
+
+
+// Update a ticket
+app.put('/api/tickets/:id', requireAuth, requireAdmin, async (req, res) => {
+  const {
+    PurchaseDate,
+    VisitDate,
+    Price,
+    Type,
+    VisitorID,
+    ExhibitionID,
+    GeneralAdmissionTicketID
+  } = req.body
+
+  if (!Type?.trim() || VisitorID == null || VisitorID === '') {
+    return res.status(400).json({
+      error: 'Ticket type and visitor are required'
+    })
+  }
+
+  try {
+    const [result] = await db.query(
+      `UPDATE TICKET SET
+        PurchaseDate = ?,
+        VisitDate = ?,
+        Price = ?,
+        Type = ?,
+        VisitorID = ?,
+        ExhibitionID = ?,
+        GeneralAdmissionTicketID = ?
+      WHERE TicketID = ?`,
+      [
+        PurchaseDate || null,
+        VisitDate || null,
+        Price === '' || Price == null ? null : Price,
+        Type.trim(),
+        VisitorID,
+        ExhibitionID === '' || ExhibitionID == null ? null : ExhibitionID,
+        GeneralAdmissionTicketID === '' || GeneralAdmissionTicketID == null
+          ? null
+          : GeneralAdmissionTicketID,
+        req.params.id
+      ]
+    )
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Ticket not found' })
+    }
+
+    res.json({ message: 'Ticket updated successfully' })
+  } catch (error) {
+    console.error('Error updating ticket:', error.message)
+    res.status(500).json({
+      error: 'Failed to update ticket. Check the related records.'
+    })
+  }
+})
+
+// Delete a ticket
+app.delete('/api/tickets/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const [result] = await db.query(
+      'DELETE FROM TICKET WHERE TicketID = ?',
+      [req.params.id]
+    )
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Ticket not found' })
+    }
+
+    res.json({ message: 'Ticket deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting ticket:', error.message)
+    res.status(500).json({
+      error: 'Failed to delete ticket. It may be referenced by another record.'
+    })
+  }
+})
+
+
+// Get all stores
+app.get('/api/stores', async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      'SELECT * FROM STORE ORDER BY StoreID'
+    )
+    res.json(rows)
+  } catch (error) {
+    console.error('Error fetching stores:', error.message)
+    res.status(500).json({ error: 'Failed to fetch stores' })
+  }
+})
+
+// Add a store
+app.post('/api/stores', requireAuth, requireAdmin, async (req, res) => {
+  const { StoreID, Name, Type, Location } = req.body
+
+  if (
+    StoreID == null ||
+    StoreID === '' ||
+    !Name?.trim() ||
+    !Type?.trim()
+  ) {
+    return res.status(400).json({
+      error: 'Store ID, name, and type are required'
+    })
+  }
+
+  try {
+    await db.query(
+      `INSERT INTO STORE (StoreID, Name, Type, Location)
+       VALUES (?, ?, ?, ?)`,
+      [
+        StoreID,
+        Name.trim(),
+        Type.trim(),
+        Location?.trim() || null
+      ]
+    )
+
+    res.status(201).json({ message: 'Store added successfully' })
+  } catch (error) {
+    console.error('Error adding store:', error.message)
+    res.status(500).json({
+      error: 'Failed to add store. Check that the store ID is unique.'
+    })
+  }
+})
+
+// Update a store
+app.put('/api/stores/:id', requireAuth, requireAdmin, async (req, res) => {
+  const { Name, Type, Location } = req.body
+
+  if (!Name?.trim() || !Type?.trim()) {
+    return res.status(400).json({
+      error: 'Store name and type are required'
+    })
+  }
+
+  try {
+    const [result] = await db.query(
+      `UPDATE STORE
+       SET Name = ?, Type = ?, Location = ?
+       WHERE StoreID = ?`,
+      [
+        Name.trim(),
+        Type.trim(),
+        Location?.trim() || null,
+        req.params.id
+      ]
+    )
+
+    if (result.affectedRows === 0) {
+      const [rows] = await db.query(
+        'SELECT StoreID FROM STORE WHERE StoreID = ?',
+        [req.params.id]
+      )
+
+      if (rows.length === 0) {
+        return res.status(404).json({ error: 'Store not found' })
+      }
+    }
+
+    res.json({ message: 'Store updated successfully' })
+  } catch (error) {
+    console.error('Error updating store:', error.message)
+    res.status(500).json({ error: 'Failed to update store' })
+  }
+})
+
+// Delete a store
+app.delete('/api/stores/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const [result] = await db.query(
+      'DELETE FROM STORE WHERE StoreID = ?',
+      [req.params.id]
+    )
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Store not found' })
+    }
+
+    res.json({ message: 'Store deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting store:', error.message)
+    res.status(500).json({
+      error: 'Failed to delete store. Another record may reference it.'
+    })
+  }
+})
+
+
+app.get('/api/my-memberships', requireAuth, async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT MembershipID, MembershipType, StartDate, EndDate, Price
+       FROM MEMBERSHIP
+       WHERE VisitorID = ?
+       ORDER BY StartDate DESC`,
+      [req.user.VisitorID]
+    )
+
+    res.json(rows)
+  } catch (error) {
+    console.error('Error fetching memberships:', error.message)
+    res.status(500).json({ error: 'Failed to fetch memberships' })
+  }
+})
+
+
+app.get('/api/parking-lots', async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT ParkingLotID, Name, Location, Capacity, HourlyRate
+       FROM PARKING_LOT
+       ORDER BY ParkingLotID`
+    )
+
+    res.json(rows)
+  } catch (error) {
+    console.error('Error fetching parking lots:', error.message)
+    res.status(500).json({ error: 'Failed to fetch parking lots' })
+  }
+})
+
+
+// Start the server
+app.listen(PORT, () => {
+  console.log(`Server is running at http://localhost:${PORT}`);
+});

@@ -73,6 +73,26 @@ app.get("/api/items", async (req, res) => {
   }
 });
 
+// Get all user accounts (without password hashes)
+app.get("/api/accounts", async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT
+        UserID,
+        VisitorID,
+        Email,
+        AccountRole,
+        CreatedAt
+      FROM USER_ACCOUNT
+    `);
+
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
 app.listen(5000, () => {
   console.log("Server running on port 5000");
 });

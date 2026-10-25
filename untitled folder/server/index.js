@@ -1384,6 +1384,378 @@ app.get('/api/parking-lots', async (req, res) => {
   }
 })
 
+// Items
+
+app.get('/api/stores/:id/items', async (req, res) => {
+  try {
+    const storeID = Number(req.params.id)
+
+    if (!Number.isInteger(storeID) || storeID <= 0) {
+      return res.status(400).json({ error: 'Invalid store ID' })
+    }
+
+    const [rows] = await db.query(
+      `SELECT
+         I.ItemID,
+         I.Name,
+         I.Price,
+         SI.StockCount
+       FROM STORE_ITEM SI
+       JOIN ITEM I ON SI.ItemID = I.ItemID
+       WHERE SI.StoreID = ?
+       ORDER BY I.Name`,
+      [storeID]
+    )
+
+    res.json(rows)
+  } catch (error) {
+    console.error('Error fetching store inventory:', error.message)
+    res.status(500).json({ error: 'Failed to fetch store inventory' })
+  }
+})
+
+
+
+app.post('/api/stores/:id/items', requireAuth, requireAdmin, async (req, res) => {
+  const connection = await db.getConnection()
+
+  try {
+    const storeID = Number(req.params.id)
+    const name = String(req.body.Name || '').trim()
+    const price = req.body.Price === '' || req.body.Price == null
+      ? null
+      : Number(req.body.Price)
+    const stockCount = Number(req.body.StockCount)
+
+    if (!Number.isInteger(storeID) || storeID <= 0) {
+      return res.status(400).json({ error: 'Invalid store ID.' })
+    }
+
+    if (!name) {
+      return res.status(400).json({ error: 'Item name is required.' })
+    }
+
+    if (price === null || !Number.isFinite(price) || price < 0) {
+      return res.status(400).json({
+        error: 'A valid, non-negative price is required.'
+      })
+    }
+
+    if (
+      req.body.StockCount == null ||
+      req.body.StockCount === '' ||
+      !Number.isInteger(stockCount) ||
+      stockCount < 0
+    ) {
+      return res.status(400).json({
+        error: 'Stock count must be a non-negative whole number.'
+      })
+    }
+
+    await connection.beginTransaction()
+
+    const [stores] = await connection.query(
+      'SELECT StoreID FROM STORE WHERE StoreID = ?',
+      [storeID]
+    )
+
+    if (stores.length === 0) {
+      await connection.rollback()
+      return res.status(404).json({ error: 'Store not found.' })
+    }
+
+    const [nextIDs] = await connection.query(
+      'SELECT COALESCE(MAX(ItemID), 0) + 1 AS nextID FROM ITEM'
+    )
+
+    const itemID = nextIDs[0].nextID
+
+    await connection.query(
+      'INSERT INTO ITEM (ItemID, Name, Price) VALUES (?, ?, ?)',
+      [itemID, name, price]
+    )
+
+    await connection.query(
+      'INSERT INTO STORE_ITEM (StoreID, ItemID, StockCount) VALUES (?, ?, ?)',
+      [storeID, itemID, stockCount]
+    )
+
+    await connection.commit()
+
+    res.status(201).json({
+      message: 'Item created and added to store successfully.',
+      ItemID: itemID
+    })
+  } catch (error) {
+    await connection.rollback()
+    console.error('Error creating store item:', error.message)
+    res.status(500).json({
+      error: 'Failed to create item. Please check the server logs.'
+    })
+  } finally {
+    connection.release()
+  }
+})
+
+
+app.put('/api/stores/:storeId/items/:itemId', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const storeID = Number(req.params.storeId)
+    const itemID = Number(req.params.itemId)
+    const stockCount = Number(req.body.StockCount)
+
+    if (
+      !Number.isInteger(storeID) || storeID <= 0 ||
+      !Number.isInteger(itemID) || itemID <= 0 ||
+      req.body.StockCount == null ||
+      req.body.StockCount === '' ||
+      !Number.isInteger(stockCount) || stockCount < 0
+    ) {
+      return res.status(400).json({
+        error: 'A non-negative whole-number stock count is required.'
+      })
+    }
+
+    const [result] = await db.query(
+      `UPDATE STORE_ITEM
+       SET StockCount = ?
+       WHERE StoreID = ? AND ItemID = ?`,
+      [stockCount, storeID, itemID]
+    )
+
+    if (result.affectedRows === 0) {
+      const [rows] = await db.query(
+        `SELECT ItemID FROM STORE_ITEM
+         WHERE StoreID = ? AND ItemID = ?`,
+        [storeID, itemID]
+      )
+
+      if (rows.length === 0) {
+        return res.status(404).json({
+          error: 'Item not found in this store.'
+        })
+      }
+    }
+
+    res.json({ message: 'Stock count updated.' })
+  } catch (error) {
+    console.error('Error updating inventory:', error.message)
+    res.status(500).json({ error: 'Failed to update stock count.' })
+  }
+})
+
+
+app.put('/api/items/:id/price', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const itemID = Number(req.params.id)
+    const price = Number(req.body.Price)
+
+    if (
+      !Number.isInteger(itemID) ||
+      itemID <= 0 ||
+      req.body.Price == null ||
+      req.body.Price === '' ||
+      !Number.isFinite(price) ||
+      price < 0
+    ) {
+      return res.status(400).json({
+        error: 'Enter a valid, non-negative price.'
+      })
+    }
+
+    const [result] = await db.query(
+      'UPDATE ITEM SET Price = ? WHERE ItemID = ?',
+      [price, itemID]
+    )
+
+    if (result.affectedRows === 0) {
+      const [rows] = await db.query(
+        'SELECT ItemID FROM ITEM WHERE ItemID = ?',
+        [itemID]
+      )
+
+      if (rows.length === 0) {
+        return res.status(404).json({ error: 'Item not found.' })
+      }
+    }
+
+    res.json({ message: 'Price updated successfully.' })
+  } catch (error) {
+    console.error('Error updating item price:', error.message)
+    res.status(500).json({ error: 'Failed to update item price.' })
+  }
+})
+
+
+app.delete('/api/stores/:storeId/items/:itemId', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const storeID = Number(req.params.storeId)
+    const itemID = Number(req.params.itemId)
+
+    if (
+      !Number.isInteger(storeID) || storeID <= 0 ||
+      !Number.isInteger(itemID) || itemID <= 0
+    ) {
+      return res.status(400).json({ error: 'Invalid store or item ID.' })
+    }
+
+    const [result] = await db.query(
+      `DELETE FROM STORE_ITEM
+       WHERE StoreID = ? AND ItemID = ?`,
+      [storeID, itemID]
+    )
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        error: 'Item not found in this store.'
+      })
+    }
+
+    res.json({ message: 'Item removed from this store.' })
+  } catch (error) {
+    console.error('Error removing inventory item:', error.message)
+    res.status(500).json({ error: 'Failed to remove item from inventory.' })
+  }
+})
+
+app.get('/api/items', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM ITEM')
+    res.json(rows)
+  } catch (error) {
+    console.error('Error fetching items:', error)
+    res.status(500).json({ error: 'Database error' })
+  }
+})
+
+
+app.post('/api/items', async (req, res) => {
+  try {
+    const { Name, Price } = req.body
+
+    if (!Name || !Name.trim()) {
+      return res.status(400).json({ error: 'Item name is required' })
+    }
+
+    const price = Price === '' || Price == null ? null : Number(Price)
+
+    if (price !== null && (!Number.isFinite(price) || price < 0)) {
+      return res.status(400).json({ error: 'Price must be a non-negative number' })
+    }
+
+    const [rows] = await db.query(
+      'SELECT COALESCE(MAX(ItemID), 0) + 1 AS nextID FROM ITEM'
+    )
+
+    const nextID = rows[0].nextID
+
+    await db.query(
+      'INSERT INTO ITEM (ItemID, Name, Price) VALUES (?, ?, ?)',
+      [nextID, Name.trim(), price]
+    )
+
+    res.status(201).json({
+      message: 'Item added successfully',
+      ItemID: nextID
+    })
+  } catch (error) {
+    console.error('Error adding item:', error)
+    res.status(500).json({ error: 'Failed to add item' })
+  }
+})
+
+
+app.put('/api/items/:id', async (req, res) => {
+  try {
+    const itemID = Number(req.params.id)
+    const { Name, Price } = req.body
+
+    if (!Number.isInteger(itemID) || itemID <= 0) {
+      return res.status(400).json({ error: 'Invalid item ID' })
+    }
+
+    if (!Name || !Name.trim()) {
+      return res.status(400).json({ error: 'Item name is required' })
+    }
+
+    const price = Price === '' || Price == null ? null : Number(Price)
+
+    if (price !== null && (!Number.isFinite(price) || price < 0)) {
+      return res.status(400).json({
+        error: 'Price must be a non-negative number'
+      })
+    }
+
+    const [result] = await db.query(
+      'UPDATE ITEM SET Name = ?, Price = ? WHERE ItemID = ?',
+      [Name.trim(), price, itemID]
+    )
+
+    if (result.affectedRows === 0) {
+      const [items] = await db.query(
+        'SELECT ItemID FROM ITEM WHERE ItemID = ?',
+        [itemID]
+      )
+
+      if (items.length === 0) {
+        return res.status(404).json({ error: 'Item not found' })
+      }
+    }
+
+    res.json({ message: 'Item updated successfully' })
+  } catch (error) {
+    console.error('Error updating item:', error)
+    res.status(500).json({ error: 'Failed to update item' })
+  }
+})
+
+
+app.delete('/api/items/:id', async (req, res) => {
+  try {
+    const itemID = Number(req.params.id)
+
+    if (!Number.isInteger(itemID) || itemID <= 0) {
+      return res.status(400).json({ error: 'Invalid item ID' })
+    }
+
+    const [items] = await db.query(
+      'SELECT ItemID FROM ITEM WHERE ItemID = ?',
+      [itemID]
+    )
+
+    if (items.length === 0) {
+      return res.status(404).json({ error: 'Item not found' })
+    }
+
+    const [storeItems] = await db.query(
+      'SELECT 1 FROM STORE_ITEM WHERE ItemID = ? LIMIT 1',
+      [itemID]
+    )
+
+    const [sales] = await db.query(
+      'SELECT 1 FROM ITEM_SOLD WHERE ItemID = ? LIMIT 1',
+      [itemID]
+    )
+
+    if (storeItems.length > 0 || sales.length > 0) {
+      return res.status(409).json({
+        error: 'This item is assigned to a store or has sales records, so it cannot be deleted.'
+      })
+    }
+
+    await db.query(
+      'DELETE FROM ITEM WHERE ItemID = ?',
+      [itemID]
+    )
+
+    res.json({ message: 'Item deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting item:', error)
+    res.status(500).json({ error: 'Failed to delete item' })
+  }
+})
+
+
 
 // Start the server
 app.listen(PORT, () => {

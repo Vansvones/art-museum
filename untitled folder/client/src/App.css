@@ -605,6 +605,8 @@ footer {
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: 18px;
 	width: 100%;
+	align-items: stretch;
+	grid-auto-rows: 1fr;
 }
 
 .galleries-page .gallery-card {
@@ -616,6 +618,13 @@ footer {
 	background: #ffffff;
 	box-shadow: none;
 	text-align: left;
+	cursor: pointer;
+	transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.galleries-page .gallery-card:hover {
+	transform: translateY(-4px);
+	box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
 }
 
 .galleries-page .gallery-card h4 {

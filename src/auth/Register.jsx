@@ -2,8 +2,11 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 export default function Register() {
-  const [name, setName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [middleName, setMiddleName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -19,7 +22,14 @@ export default function Register() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ name, email, password })
+        body: JSON.stringify({
+          firstName,
+          middleName,
+          lastName,
+          email,
+          phone,
+          password
+        })
       })
 
       const data = await response.json()
@@ -41,13 +51,32 @@ export default function Register() {
       <h2>Create an Account</h2>
 
       <form onSubmit={handleSubmit}>
-        <label htmlFor="name">Name</label>
+        <label htmlFor="first-name">First Name</label>
         <input
-          id="name"
+          id="first-name"
           type="text"
-          value={name}
-          onChange={e => setName(e.target.value)}
-          autoComplete="name"
+          value={firstName}
+          onChange={e => setFirstName(e.target.value)}
+          autoComplete="given-name"
+          required
+        />
+
+        <label htmlFor="middle-name">Middle Name (Optional)</label>
+        <input
+          id="middle-name"
+          type="text"
+          value={middleName}
+          onChange={e => setMiddleName(e.target.value)}
+          autoComplete="additional-name"
+        />
+
+        <label htmlFor="last-name">Last Name</label>
+        <input
+          id="last-name"
+          type="text"
+          value={lastName}
+          onChange={e => setLastName(e.target.value)}
+          autoComplete="family-name"
           required
         />
 
@@ -59,6 +88,15 @@ export default function Register() {
           onChange={e => setEmail(e.target.value)}
           autoComplete="email"
           required
+        />
+
+        <label htmlFor="register-phone">Phone (Optional)</label>
+        <input
+          id="register-phone"
+          type="tel"
+          value={phone}
+          onChange={e => setPhone(e.target.value)}
+          autoComplete="tel"
         />
 
         <label htmlFor="register-password">Password</label>

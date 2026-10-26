@@ -38,7 +38,7 @@ function CustomerArtworks() {
   )
 
   return (
-    <div className="artworks-page">
+    <div className="galleries-page">
       <h2>Explore Artworks</h2>
       <p>Browse the museum collection.</p>
 
@@ -57,6 +57,7 @@ function CustomerArtworks() {
           {filteredArtworks.map((artwork) => (
             <div className="artwork-card" key={artwork.ArtworkID}>
               <h3>{artwork.Name}</h3>
+              <p><strong>Artist:</strong> {artwork.ArtistNames || 'Unknown'}</p>
               <p><strong>Description:</strong> {artwork.Description || '—'}</p>
               <p><strong>Type:</strong> {artwork.Type || '—'}</p>
               <p><strong>Origin:</strong> {artwork.Origin || '—'}</p>

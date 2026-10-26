@@ -32,7 +32,9 @@ function CustomerStores() {
     setItemsError('')
 
     try {
-      const response = await fetch('http://localhost:3000/api/items')
+      const response = await fetch(
+        `http://localhost:3000/api/stores/${store.StoreID}/items`
+      )
 
       if (!response.ok) {
         throw new Error('Failed to load store items')
@@ -97,6 +99,9 @@ function CustomerStores() {
                   {item.Price == null
                     ? 'Price unavailable'
                     : `$${Number(item.Price).toFixed(2)}`}
+                </p>
+                <p>
+                  <strong>Quantity:</strong> {item.StockCount}
                 </p>
               </div>
             ))}

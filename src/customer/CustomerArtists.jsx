@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 export default function CustomerArtists() {
   const [artists, setArtists] = useState([])
   const [error, setError] = useState('')
+  const navigate = useNavigate()
 
   useEffect(() => {
     fetch('http://localhost:3000/api/artists')
@@ -15,7 +17,7 @@ export default function CustomerArtists() {
   }, [])
 
   return (
-  <section className="customer-home">
+  <section className="galleries-page">
     <h2>Explore Artists</h2>
     <p>Discover the artists behind our collection.</p>
 
@@ -23,7 +25,19 @@ export default function CustomerArtists() {
 
     <div className="visitor-options">
       {artists.map(artist => (
-        <article className="visitor-option" key={artist.ArtistID}>
+        <article
+          className="visitor-option artist-option"
+          key={artist.ArtistID}
+          onClick={() => navigate(`/customer/artists/${artist.ArtistID}`)}
+          role="link"
+          tabIndex={0}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              navigate(`/customer/artists/${artist.ArtistID}`)
+            }
+          }}
+        >
           <h3>
             {artist.FirstName}{' '}
             {artist.MiddleName ? `${artist.MiddleName} ` : ''}

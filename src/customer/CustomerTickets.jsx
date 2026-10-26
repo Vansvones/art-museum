@@ -15,7 +15,7 @@ function CustomerTickets() {
 
   const prices = {
     'General Admission': 18,
-    'Single Exhibition': 12
+    'Single Exhibition': 30
   }
 
   useEffect(() => {
@@ -42,60 +42,28 @@ function CustomerTickets() {
   }, [])
 
   
-    async function handlePurchase(event) {
-    event.preventDefault()
-    setError('')
+    function handlePurchase(event) {
+      event.preventDefault()
+      setError('')
 
-    if (!visitDate) {
+      if (!visitDate) {
         setError('Please select a visit date.')
         return
-    }
+      }
 
-    if (ticketType === 'Single Exhibition' && !exhibitionId) {
+      if (ticketType === 'Single Exhibition' && !exhibitionId) {
         setError('Please select an exhibition.')
         return
-    }
+      }
 
-    try {
-        const response = await fetch(
-        'http://localhost:3000/api/tickets/purchase',
-        {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-            Type: ticketType,
-            VisitDate: visitDate,
-            Quantity: quantity,
-            ExhibitionID: exhibitionId ? Number(exhibitionId) : null
-            })
-        }
-        )
-
-        const result = await response.json()
-
-        if (response.status === 401) {
-        navigate('/login', {
-            state: {
-            from: '/customer/tickets',
-            message: 'Please log in to purchase tickets.'
-            }
-        })
-        return
-        }
-
-        if (!response.ok) {
-        throw new Error(result.error || 'Purchase failed.')
-        }
-
-        navigate('/customer/tickets', {
+      navigate('/customer/checkout', {
         state: {
-            purchase: result
+          Type: ticketType,
+          VisitDate: visitDate,
+          Quantity: quantity,
+          ExhibitionID: exhibitionId ? Number(exhibitionId) : null
         }
-        })
-    } catch (error) {
-        setError(error.message)
-    }
+      })
     }
 
 
@@ -104,7 +72,9 @@ function CustomerTickets() {
   return (
     <div className="customer-page">
       <section className="customer-content">
-        <h1>Purchase Tickets</h1>
+        <section className="galleries-page">
+        <h2>Purchase Tickets</h2>
+        </section>
         <p>
           Plan your visit to the Museum of Fine Arts by choosing
           your ticket type, visit date, and quantity.
@@ -119,8 +89,8 @@ function CustomerTickets() {
 
           <div className="customer-card">
             <h3>Single Exhibition</h3>
-            <p>Admission to a selected special exhibition.</p>
-            <p><strong>$12.00</strong> per ticket</p>
+            <p>Includes General Admission ($18.00) and a selected special exhibition ($12.00).</p>
+            <p><strong>$30.00</strong> per person</p>
           </div>
         </div>
 
@@ -132,7 +102,7 @@ function CustomerTickets() {
             onChange={(event) => setTicketType(event.target.value)}
           >
             <option value="General Admission">General Admission — $18</option>
-            <option value="Single Exhibition">Single Exhibition — $12</option>
+            <option value="Single Exhibition">Single Exhibition + General Admission — $30</option>
           </select>
 
           {ticketType === 'Single Exhibition' && (

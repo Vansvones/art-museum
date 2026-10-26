@@ -1,10 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 function Exhibitions() {
   const [exhibitions, setExhibitions] = useState([])
   const [search, setSearch] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [error, setError] = useState('')
+  const [selectedExhibition, setSelectedExhibition] = useState(null)
+  const [exhibitionArtworks, setExhibitionArtworks] = useState([])
+  const [allArtworks, setAllArtworks] = useState([])
+  const [selectedArtworkID, setSelectedArtworkID] = useState('')
+  const artworksPanelRef = useRef(null)
 
   const [form, setForm] = useState({
     Name: '',
@@ -175,10 +180,102 @@ function Exhibitions() {
       .includes(search.toLowerCase())
   )
 
+
+async function openExhibitionArtworks(exhibition) {
+  setSelectedExhibition(exhibition)
+  setExhibitionArtworks([])
+  setSelectedArtworkID('')
+  setError('')
+
+  try {
+    const [artworksResponse, allArtworksResponse] = await Promise.all([
+      fetch(
+        `http://localhost:3000/api/exhibitions/${exhibition.ExhibitionID}/artworks`
+      ),
+      fetch('http://localhost:3000/api/artworks')
+    ])
+
+    if (!artworksResponse.ok || !allArtworksResponse.ok) {
+      throw new Error('Failed to load artworks.')
+    }
+
+    const [assignedArtworks, artworks] = await Promise.all([
+      artworksResponse.json(),
+      allArtworksResponse.json()
+    ])
+
+    setExhibitionArtworks(assignedArtworks)
+    setAllArtworks(artworks)
+    setTimeout(() => {
+    artworksPanelRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    })
+  }, 100)
+  } catch (error) {
+    setError(error.message)
+  }
+}
+
+async function addArtworkToExhibition() {
+  if (!selectedArtworkID || !selectedExhibition) return
+
+  try {
+    const response = await fetch(
+      `http://localhost:3000/api/exhibitions/${selectedExhibition.ExhibitionID}/artworks`,
+      {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ArtworkID: Number(selectedArtworkID)
+        })
+      }
+    )
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Failed to add artwork.')
+    }
+
+    await openExhibitionArtworks(selectedExhibition)
+  } catch (error) {
+    setError(error.message)
+  }
+}
+
+async function removeArtworkFromExhibition(artworkID) {
+  if (!selectedExhibition) return
+
+  if (!window.confirm('Remove this artwork from the exhibition?')) return
+
+  try {
+    const response = await fetch(
+      `http://localhost:3000/api/exhibitions/${selectedExhibition.ExhibitionID}/artworks/${artworkID}`,
+      {
+        method: 'DELETE',
+        credentials: 'include'
+      }
+    )
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Failed to remove artwork.')
+    }
+
+    await openExhibitionArtworks(selectedExhibition)
+  } catch (error) {
+    setError(error.message)
+  }
+}
+
+
   return (
     <div className="exhibitions-page">
         <div className="exhibitions-header">
-        <h2>Exhibitions</h2>
+        <h2>Manage Exhibitions</h2>
         <p>Browse and manage the museum's exhibitions.</p>
     </div>
         {error && <p className="error-message">{error}</p>}
@@ -286,9 +383,13 @@ function Exhibitions() {
           <p>No exhibitions found.</p>
         ) : (
           filteredExhibitions.map(exhibition => (
-            <div className="exhibition-card" key={exhibition.ExhibitionID}>
+            <div
+              className="exhibition-card"
+              key={exhibition.ExhibitionID}
+              onClick={() => openExhibitionArtworks(exhibition)}
+            >
               <h4>{exhibition.Name}</h4>
-
+              <p>Click to manage exhibition artworks</p>
               <p><strong>ID:</strong> {exhibition.ExhibitionID}</p>
               <p><strong>Description:</strong> {exhibition.Description || 'None'}</p>
               <p><strong>Type:</strong> {exhibition.ExhibitionType}</p>
@@ -298,11 +399,17 @@ function Exhibitions() {
               <p><strong>Manager ID:</strong> {exhibition.ManagerID ?? 'Not assigned'}</p>
 
             <div className="exhibition-card-actions">
-                <button onClick={() => startEditing(exhibition)}>
+                <button onClick={event => {
+                  event.stopPropagation()
+                  startEditing(exhibition)
+                }}>
                     Edit
                 </button>
 
-                <button onClick={() => deleteExhibition(exhibition.ExhibitionID)}>
+                <button onClick={event => {
+                  event.stopPropagation()
+                  deleteExhibition(exhibition.ExhibitionID)
+                }}>
                     Delete
                 </button>
             </div>
@@ -310,6 +417,81 @@ function Exhibitions() {
           ))
         )}
       </div>
+
+      {/* Manage artworks for the selected exhibition */}
+      {selectedExhibition && (
+        <div className="exhibition-artworks-panel" ref={artworksPanelRef}>
+          <h3>Manage Artworks: {selectedExhibition.Name}</h3>
+
+          <button
+            type="button"
+            onClick={() => setSelectedExhibition(null)}
+          >
+            Close
+          </button>
+
+          <div className="add-artwork-form">
+            <label>Add Artwork</label>
+
+            <select
+              value={selectedArtworkID}
+              onChange={event => setSelectedArtworkID(event.target.value)}
+            >
+              <option value="">Select an artwork</option>
+
+              {allArtworks
+                .filter(artwork =>
+                  !exhibitionArtworks.some(
+                    assigned =>
+                      Number(assigned.ArtworkID) === Number(artwork.ArtworkID)
+                  )
+                )
+                .map(artwork => (
+                  <option key={artwork.ArtworkID} value={artwork.ArtworkID}>
+                    {artwork.Name} (ID: {artwork.ArtworkID})
+                  </option>
+                ))}
+            </select>
+
+            <button
+              type="button"
+              onClick={addArtworkToExhibition}
+              disabled={!selectedArtworkID}
+            >
+              Add Artwork
+            </button>
+          </div>
+
+          <h4>Artworks in This Exhibition</h4>
+
+          {exhibitionArtworks.length === 0 ? (
+            <p>No artworks assigned to this exhibition yet.</p>
+          ) : (
+            exhibitionArtworks.map(artwork => (
+              <div
+                className="exhibition-artwork-card"
+                key={artwork.ArtworkID}
+              >
+                
+              <h5>{artwork.Name}</h5>
+              <p><strong>ID:</strong> {artwork.ArtworkID}</p>
+              <p><strong>Artist:</strong> {artwork.ArtistNames || 'Artist not listed'}</p>
+              <p><strong>Description:</strong> {artwork.Description || 'No description available'}</p>
+              <p><strong>Type:</strong> {artwork.Type || 'Not specified'}</p>
+              <p><strong>Origin:</strong> {artwork.Origin || 'Not specified'}</p>
+              <p><strong>Creation Year:</strong> {artwork.CreationDate ? String(artwork.CreationDate).slice(0, 4) : 'Not specified'}</p>
+
+                <button
+                  type="button"
+                  onClick={() => removeArtworkFromExhibition(artwork.ArtworkID)}
+                >
+                  Remove from Exhibition
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   )
 }

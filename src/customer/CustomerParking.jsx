@@ -30,8 +30,8 @@ function CustomerParking() {
 
   return (
     <div className="customer-page">
-      <section className="customer-content">
-        <h1>Museum Parking</h1>
+      <section className="galleries-page">
+        <h2>Museum Parking</h2>
         <p>
           Find parking locations, capacity information, and hourly rates
           for your museum visit.

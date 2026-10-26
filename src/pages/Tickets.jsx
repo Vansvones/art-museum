@@ -357,7 +357,7 @@ function Tickets() {
               <p><strong>Type:</strong> {ticket.Type}</p>
               <p>
                 <strong>Exhibition:</strong>{' '}
-                {ticket.ExhibitionName || 'General admission / none assigned'}
+                {ticket.ExhibitionName || 'General admission'}
               </p>
               <p><strong>Purchase Date:</strong> {formatDate(ticket.PurchaseDate)}</p>
               <p><strong>Visit Date:</strong> {formatDate(ticket.VisitDate)}</p>

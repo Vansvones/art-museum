@@ -13,6 +13,8 @@ import CustomerStores from './customer/CustomerStores'
 import CustomerMemberships from './customer/CustomerMemberships'
 import CustomerParking from './customer/CustomerParking'
 import CustomerTickets from './customer/CustomerTickets'
+import CustomerCheckout from './customer/CustomerCheckout'
+import CustomerArtistArtworks from './customer/CustomerArtistArtworks'
 import Tickets from './pages/Tickets'
 import AdminDashboard from './admin/AdminDashboard'
 import Login from './auth/Login'
@@ -72,9 +74,11 @@ function VisitorLayout() {
         <Route path="/" element={<CustomerHome />} />
         <Route path="/artworks" element={<CustomerArtworks />} />
         <Route path="/artists" element={<CustomerArtists />} />
+        <Route path="/artists/:artistId" element={<CustomerArtistArtworks />} />
         <Route path="/galleries" element={<CustomerGalleries />} />
         <Route path="/exhibitions" element={<CustomerExhibitions />} />
         <Route path="/tickets" element={<CustomerTickets />} />
+        <Route path="/checkout" element={<CustomerCheckout />} />
         <Route path="/stores" element={<CustomerStores />} />
         <Route path="/memberships" element={<CustomerMemberships />} />
         <Route path="/parking" element={<CustomerParking />} />

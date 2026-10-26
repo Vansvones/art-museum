@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: '../../.env' });
 
 const express = require('express');
 const cors = require('cors');
@@ -69,27 +69,32 @@ app.post('/api/auth/register', async (req, res) => {
       });
     }
 
-    const name = String(req.body.name || '').trim();
+    const firstName = String(req.body.firstName || '').trim();
+    const middleName = String(req.body.middleName || '').trim();
+    const lastName = String(req.body.lastName || '').trim();
     const email = String(req.body.email || '').trim().toLowerCase();
+    const phone = String(req.body.phone || '').trim();
     const password = req.body.password;
 
-    const nameParts = name.split(/\s+/).filter(Boolean);
-
-    if (nameParts.length < 2) {
+    if (!firstName || !lastName) {
       return res.status(400).json({
-        error: 'Please enter your first and last name.'
+        error: 'First name and last name are required.'
       });
     }
 
-    if (nameParts[0].length > 30 ||
-        nameParts[nameParts.length - 1].length > 30) {
+    if (
+      firstName.length > 30 ||
+      middleName.length > 30 ||
+      lastName.length > 30 ||
+      email.length > 50 ||
+      phone.length > 15
+    ) {
       return res.status(400).json({
-        error: 'First and last names must be 30 characters or fewer.'
+        error: 'One or more fields exceed the allowed length.'
       });
     }
 
-    if (!email || email.length > 255 ||
-        typeof password !== 'string' || password.length < 8) {
+    if (!email || typeof password !== 'string' || password.length < 8) {
       return res.status(400).json({
         error: 'Enter a valid email and a password of at least 8 characters.'
       });
@@ -106,18 +111,6 @@ app.post('/api/auth/register', async (req, res) => {
       });
     }
 
-    const firstName = nameParts[0];
-    const lastName = nameParts[nameParts.length - 1];
-    const middleName = nameParts.length > 2
-      ? nameParts.slice(1, -1).join(' ')
-      : null;
-
-    if (middleName && middleName.length > 30) {
-      return res.status(400).json({
-        error: 'Middle name is too long.'
-      });
-    }
-
     const passwordHash = await bcrypt.hash(password, 12);
 
     await connection.beginTransaction();
@@ -130,9 +123,16 @@ app.post('/api/auth/register', async (req, res) => {
 
     await connection.execute(
       `INSERT INTO VISITOR
-       (VisitorID, FirstName, MiddleName, LastName, Email)
-       VALUES (?, ?, ?, ?, ?)`,
-      [visitorID, firstName, middleName, lastName, email]
+      (VisitorID, FirstName, MiddleName, LastName, Email, Phone)
+      VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        visitorID,
+        firstName,
+        middleName || null,
+        lastName,
+        email,
+        phone || null
+      ]
     );
 
     await connection.execute(
@@ -229,9 +229,143 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Check admin session
+app.get('/api/auth/admin/me', requireAuth, requireAdmin, (req, res) => {
+  res.json({
+    user: {
+      id: req.user.userId,
+      email: req.user.email,
+      role: req.user.role
+    }
+  });
+});
+
 // Check the current session
-app.get('/api/auth/me', requireAuth, (req, res) => {
-  res.json({ user: req.user });
+app.get('/api/auth/me', requireAuth, async (req, res) => {
+  try {
+    if (req.user.role !== 'VISITOR' || !req.user.VisitorID) {
+      return res.status(403).json({
+        error: 'A visitor account is required.'
+      });
+    }
+
+    const [rows] = await db.query(
+      `SELECT FirstName, MiddleName, LastName, Email, Phone
+       FROM VISITOR
+       WHERE VisitorID = ?`,
+      [req.user.VisitorID]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        error: 'Visitor information not found.'
+      });
+    }
+
+    res.json({ user: rows[0] });
+  } catch (error) {
+    console.error('Error loading visitor information:', error.message);
+    res.status(500).json({
+      error: 'Could not load visitor information.'
+    });
+  }
+});
+
+app.put('/api/auth/me', requireAuth, async (req, res) => {
+  try {
+    if (req.user.role !== 'VISITOR' || !req.user.VisitorID) {
+      return res.status(403).json({
+        error: 'A visitor account is required.'
+      });
+    }
+
+    const FirstName = String(req.body.FirstName || '').trim();
+    const MiddleName = String(req.body.MiddleName || '').trim();
+    const LastName = String(req.body.LastName || '').trim();
+    const Email = String(req.body.Email || '').trim().toLowerCase();
+    const Phone = String(req.body.Phone || '').trim();
+
+    if (!FirstName || !LastName || !Email) {
+      return res.status(400).json({
+        error: 'First name, last name, and email are required.'
+      });
+    }
+
+    if (
+      FirstName.length > 30 ||
+      MiddleName.length > 30 ||
+      LastName.length > 30 ||
+      Email.length > 50 ||
+      Phone.length > 15
+    ) {
+      return res.status(400).json({
+        error: 'One or more fields exceed the allowed length.'
+      });
+    }
+
+    const [accounts] = await db.query(
+      `SELECT UserID
+       FROM USER_ACCOUNT
+       WHERE Email = ? AND UserID <> ?`,
+      [Email, req.user.userId]
+    );
+
+    if (accounts.length > 0) {
+      return res.status(409).json({
+        error: 'That email is already used by another account.'
+      });
+    }
+
+    const connection = await db.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      await connection.query(
+        `UPDATE VISITOR
+         SET FirstName = ?, MiddleName = ?, LastName = ?,
+             Email = ?, Phone = ?
+         WHERE VisitorID = ?`,
+        [
+          FirstName,
+          MiddleName || null,
+          LastName,
+          Email,
+          Phone || null,
+          req.user.VisitorID
+        ]
+      );
+
+      await connection.query(
+        `UPDATE USER_ACCOUNT
+         SET Email = ?
+         WHERE UserID = ?`,
+        [Email, req.user.userId]
+      );
+
+      await connection.commit();
+
+      res.json({
+        message: 'Visitor information saved successfully.'
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({
+        error: 'That email is already in use.'
+      });
+    }
+
+    console.error('Error updating visitor information:', error.message);
+    res.status(500).json({
+      error: 'Could not save visitor information.'
+    });
+  }
 });
 
 // Log out
@@ -411,13 +545,28 @@ app.get('/api/artworks', async (req, res) => {
   try {
     const [rows] = await db.query(`
       SELECT
-        ArtworkID,
-        Name,
-        Description,
-        Type,
-        Origin,
-        YEAR(CreationDate) AS CreationYear
-      FROM ARTWORK
+        A.ArtworkID,
+        GROUP_CONCAT(DISTINCT AA.ArtistID ORDER BY AA.ArtistID SEPARATOR ',') AS ArtistIDs,
+        A.Name,
+        A.Description,
+        A.Type,
+        A.Origin,
+        YEAR(A.CreationDate) AS CreationYear,
+        GROUP_CONCAT(
+          CONCAT(AR.FirstName, ' ', AR.LastName)
+          SEPARATOR ', '
+        ) AS ArtistNames
+      FROM ARTWORK A
+      LEFT JOIN ARTIST_ARTWORK AA ON A.ArtworkID = AA.ArtworkID
+      LEFT JOIN ARTIST AR ON AA.ArtistID = AR.ArtistID
+      GROUP BY
+        A.ArtworkID,
+        A.Name,
+        A.Description,
+        A.Type,
+        A.Origin,
+        A.CreationDate
+      ORDER BY A.Name
     `);
 
     res.json(rows);
@@ -437,6 +586,148 @@ app.get('/api/exhibitions', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch exhibitions' });
   }
 });
+
+
+ // Get artworks in a specific exhibition
+app.get('/api/exhibitions/:id/artworks', async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT
+          A.ArtworkID,
+          A.Name,
+          A.Description,
+          A.Type,
+          A.Origin,
+          A.CreationDate,
+          GROUP_CONCAT(
+            CONCAT(AR.FirstName, ' ', AR.LastName)
+            SEPARATOR ', '
+          ) AS ArtistNames
+      FROM EXHIBITION_ARTWORK EA
+      JOIN ARTWORK A ON EA.ArtworkID = A.ArtworkID
+      LEFT JOIN ARTIST_ARTWORK AA ON A.ArtworkID = AA.ArtworkID
+      LEFT JOIN ARTIST AR ON AA.ArtistID = AR.ArtistID
+      WHERE EA.ExhibitionID = ?
+      GROUP BY
+          A.ArtworkID,
+          A.Name,
+          A.Description,
+          A.Type,
+          A.Origin,
+          A.CreationDate`,
+      [req.params.id]
+    );
+
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching exhibition artworks:', error.message);
+    res.status(500).json({ error: 'Failed to fetch exhibition artworks' });
+  }
+});
+
+ // Add an artwork to an exhibition
+app.post(
+  '/api/exhibitions/:id/artworks',
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    const exhibitionID = Number(req.params.id);
+    const artworkID = Number(req.body.ArtworkID);
+
+    if (
+      !Number.isInteger(exhibitionID) || exhibitionID <= 0 ||
+      !Number.isInteger(artworkID) || artworkID <= 0
+    ) {
+      return res.status(400).json({
+        error: 'Valid exhibition and artwork IDs are required.'
+      });
+    }
+
+    try {
+      const [exhibitions] = await db.query(
+        'SELECT ExhibitionID FROM EXHIBITION WHERE ExhibitionID = ?',
+        [exhibitionID]
+      );
+
+      if (exhibitions.length === 0) {
+        return res.status(404).json({ error: 'Exhibition not found.' });
+      }
+
+      const [artworks] = await db.query(
+        'SELECT ArtworkID FROM ARTWORK WHERE ArtworkID = ?',
+        [artworkID]
+      );
+
+      if (artworks.length === 0) {
+        return res.status(404).json({ error: 'Artwork not found.' });
+      }
+
+      await db.query(
+        `INSERT INTO EXHIBITION_ARTWORK (ExhibitionID, ArtworkID)
+         VALUES (?, ?)`,
+        [exhibitionID, artworkID]
+      );
+
+      res.status(201).json({
+        message: 'Artwork added to exhibition successfully.'
+      });
+    } catch (error) {
+      if (error.code === 'ER_DUP_ENTRY') {
+        return res.status(409).json({
+          error: 'This artwork is already in the exhibition.'
+        });
+      }
+
+      console.error('Error adding exhibition artwork:', error.message);
+      res.status(500).json({
+        error: 'Failed to add artwork to exhibition.'
+      });
+    }
+  }
+);
+
+// Remove an artwork from an exhibition
+app.delete(
+  '/api/exhibitions/:id/artworks/:artworkId',
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    const exhibitionID = Number(req.params.id);
+    const artworkID = Number(req.params.artworkId);
+
+    if (
+      !Number.isInteger(exhibitionID) || exhibitionID <= 0 ||
+      !Number.isInteger(artworkID) || artworkID <= 0
+    ) {
+      return res.status(400).json({
+        error: 'Valid exhibition and artwork IDs are required.'
+      });
+    }
+
+    try {
+      const [result] = await db.query(
+        `DELETE FROM EXHIBITION_ARTWORK
+         WHERE ExhibitionID = ? AND ArtworkID = ?`,
+        [exhibitionID, artworkID]
+      );
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          error: 'Artwork was not assigned to this exhibition.'
+        });
+      }
+
+      res.json({
+        message: 'Artwork removed from exhibition successfully.'
+      });
+    } catch (error) {
+      console.error('Error removing exhibition artwork:', error.message);
+      res.status(500).json({
+        error: 'Failed to remove artwork from exhibition.'
+      });
+    }
+  }
+);
 
 // Add a new exhibition
 app.post('/api/exhibitions', requireAuth, requireAdmin, async (req, res) => {
@@ -654,7 +945,8 @@ app.post('/api/artworks', requireAuth, requireAdmin, async (req, res) => {
       Description,
       Type,
       Origin,
-      CreationYear
+      CreationYear,
+      ArtistIDs
     } = req.body;
 
     if (ArtworkID == null || !Name || Name.trim() === '') {
@@ -691,6 +983,14 @@ app.post('/api/artworks', requireAuth, requireAdmin, async (req, res) => {
       ]
     );
 
+    for (const artistID of ArtistIDs || []) {
+      await db.query(
+        `INSERT INTO ARTIST_ARTWORK (ArtistID, ArtworkID)
+        VALUES (?, ?)`,
+        [artistID, ArtworkID]
+      );
+    }
+
     res.status(201).json({
       message: 'Artwork added successfully'
     });
@@ -708,7 +1008,8 @@ app.put('/api/artworks/:id', requireAuth, requireAdmin, async (req, res) => {
       Description,
       Type,
       Origin,
-      CreationYear
+      CreationYear,
+      ArtistIDs
     } = req.body;
 
     if (!Name || Name.trim() === '') {
@@ -758,6 +1059,19 @@ app.put('/api/artworks/:id', requireAuth, requireAdmin, async (req, res) => {
       }
     }
 
+    await db.query(
+      'DELETE FROM ARTIST_ARTWORK WHERE ArtworkID = ?',
+      [req.params.id]
+    );
+
+    for (const artistID of ArtistIDs || []) {
+      await db.query(
+        `INSERT INTO ARTIST_ARTWORK (ArtistID, ArtworkID)
+        VALUES (?, ?)`,
+        [artistID, req.params.id]
+      );
+    }
+
     res.json({
       message: 'Artwork updated successfully'
     });
@@ -770,22 +1084,30 @@ app.put('/api/artworks/:id', requireAuth, requireAdmin, async (req, res) => {
 // Delete an artwork
 app.delete('/api/artworks/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
+    const artworkID = req.params.id;
+
+    await db.query(
+      'DELETE FROM ARTIST_ARTWORK WHERE ArtworkID = ?',
+      [artworkID]
+    );
+
+    await db.query(
+      'DELETE FROM EXHIBITION_ARTWORK WHERE ArtworkID = ?',
+      [artworkID]
+    );
+
     const [result] = await db.query(
       'DELETE FROM ARTWORK WHERE ArtworkID = ?',
-      [req.params.id]
+      [artworkID]
     );
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({
-        error: 'Artwork not found'
-      });
+      return res.status(404).json({ error: 'Artwork not found' });
     }
 
-    res.json({
-      message: 'Artwork deleted successfully'
-    });
+    res.json({ message: 'Artwork deleted successfully' });
   } catch (error) {
-    console.error('Error deleting artwork:', error.message);
+    console.error('Error deleting artwork:', error);
     res.status(500).json({ error: 'Failed to delete artwork' });
   }
 });
@@ -1080,6 +1402,9 @@ app.post('/api/tickets/purchase', requireAuth, async (req, res) => {
   }
 
   const price = Type === 'General Admission' ? 18.00 : 12.00;
+  const totalPrice = Type === 'General Admission'
+    ? price * Quantity
+    : 30.00 * Quantity;
   const connection = await db.getConnection();
 
   try {
@@ -1109,28 +1434,27 @@ app.post('/api/tickets/purchase', requireAuth, async (req, res) => {
     for (let i = 0; i < Quantity; i++) {
       let generalAdmissionTicketID = null;
 
-      // The current database constraint requires every single-exhibition
-      // ticket to reference a general-admission ticket.
       if (Type === 'Single Exhibition') {
         const [generalResult] = await connection.query(
           `INSERT INTO TICKET
-           (PurchaseDate, VisitDate, Price, Type, VisitorID,
+          (PurchaseDate, VisitDate, Price, Type, VisitorID,
             ExhibitionID, GeneralAdmissionTicketID)
-           VALUES (CURDATE(), ?, 18.00, 'General Admission', ?, NULL, NULL)`,
+          VALUES (CURDATE(), ?, 18.00, 'General Admission', ?, NULL, NULL)`,
           [VisitDate, visitorID]
         );
 
         generalAdmissionTicketID = generalResult.insertId;
+        ticketIDs.push(generalAdmissionTicketID);
       }
 
       const [result] = await connection.query(
         `INSERT INTO TICKET
-         (PurchaseDate, VisitDate, Price, Type, VisitorID,
+        (PurchaseDate, VisitDate, Price, Type, VisitorID,
           ExhibitionID, GeneralAdmissionTicketID)
-         VALUES (CURDATE(), ?, ?, ?, ?, ?, ?)`,
+        VALUES (CURDATE(), ?, ?, ?, ?, ?, ?)`,
         [
           VisitDate,
-          price,
+          Type === 'General Admission' ? 18.00 : 12.00,
           Type,
           visitorID,
           Type === 'Single Exhibition' ? Number(ExhibitionID) : null,
@@ -1147,7 +1471,7 @@ app.post('/api/tickets/purchase', requireAuth, async (req, res) => {
       message: 'Ticket purchase recorded successfully.',
       ticketIDs,
       quantity: Quantity,
-      total: Number((price * Quantity).toFixed(2))
+      total: Number(totalPrice.toFixed(2))
     });
   } catch (error) {
     await connection.rollback();
@@ -1754,8 +2078,6 @@ app.delete('/api/items/:id', async (req, res) => {
     res.status(500).json({ error: 'Failed to delete item' })
   }
 })
-
-
 
 // Start the server
 app.listen(PORT, () => {

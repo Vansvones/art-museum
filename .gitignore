@@ -22,5 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-.env.env
-untitled folder/server/.env
+.env
+.env.*
+!.env.example

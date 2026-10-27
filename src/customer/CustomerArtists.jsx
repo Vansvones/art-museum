@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 export default function CustomerArtists() {
   const [artists, setArtists] = useState([])
   const [error, setError] = useState('')
+  const [search, setSearch] = useState('')
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -16,6 +17,12 @@ export default function CustomerArtists() {
       .catch(err => setError(err.message))
   }, [])
 
+  const filteredArtists = artists.filter(artist =>
+    `${artist.FirstName || ''} ${artist.MiddleName || ''} ${artist.LastName || ''} ${artist.Nationality || ''}`
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  )
+
   return (
   <section className="galleries-page">
     <h2>Explore Artists</h2>
@@ -23,8 +30,16 @@ export default function CustomerArtists() {
 
     {error && <p role="alert">{error}</p>}
 
+    <input
+      className="artist-search"
+      type="text"
+      placeholder="Search artists by name or nationality..."
+      value={search}
+      onChange={e => setSearch(e.target.value)}
+    />
+
     <div className="visitor-options">
-      {artists.map(artist => (
+      {filteredArtists.map(artist => (
         <article
           className="visitor-option artist-option"
           key={artist.ArtistID}
@@ -65,7 +80,9 @@ export default function CustomerArtists() {
       ))}
     </div>
 
-    {!error && artists.length === 0 && <p>No artists found.</p>}
+    {!error && filteredArtists.length === 0 && (
+      <p>{search ? 'No artists match your search.' : 'No artists found.'}</p>
+    )}
   </section>
 )
 }

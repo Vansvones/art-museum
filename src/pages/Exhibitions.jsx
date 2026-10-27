@@ -468,12 +468,22 @@ async function removeArtworkFromExhibition(artworkID) {
             <p>No artworks assigned to this exhibition yet.</p>
           ) : (
             exhibitionArtworks.map(artwork => (
-              <div
-                className="exhibition-artwork-card"
-                key={artwork.ArtworkID}
-              >
-                
+              
+            <div
+              className="exhibition-artwork-card"
+              key={artwork.ArtworkID}
+            >
+              <img
+                src={`/MuseumImages/${artwork.ArtworkID}.jpeg`}
+                alt={artwork.Name}
+                className="artwork-image"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'
+                }}
+              />
+
               <h5>{artwork.Name}</h5>
+
               <p><strong>ID:</strong> {artwork.ArtworkID}</p>
               <p><strong>Artist:</strong> {artwork.ArtistNames || 'Artist not listed'}</p>
               <p><strong>Description:</strong> {artwork.Description || 'No description available'}</p>

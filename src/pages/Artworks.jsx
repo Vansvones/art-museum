@@ -321,8 +321,18 @@ function Artworks() {
 
       <div className="artwork-list">
         {filteredArtworks.map(artwork => (
+          
           <div className="artwork-card" key={artwork.ArtworkID}>
+            <img
+              src={`/MuseumImages/${artwork.ArtworkID}.jpeg`}
+              alt={artwork.Name}
+              className="artwork-image"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+              }}
+            />
             <h3>{artwork.Name}</h3>
+
             <p><strong>Artwork ID:</strong> {artwork.ArtworkID}</p>
             <p><strong>Artist(s):</strong> {artwork.ArtistNames || 'Not assigned'}</p>
             <p><strong>Description:</strong> {artwork.Description || '—'}</p>

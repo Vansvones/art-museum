@@ -121,6 +121,15 @@ export default function CustomerExhibitions() {
           <div className="exhibition-artwork-list">
             {artworks.map(artwork => (
               <article className="exhibition-artwork-card" key={artwork.ArtworkID}>
+                <img
+                  src={`/MuseumImages/${artwork.ArtworkID}.jpeg`}
+                  alt={artwork.Name}
+                  className="artwork-image"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                  }}
+                />
+
                 <h3>{artwork.Name}</h3>
                 <p><strong>Artist:</strong> {artwork.ArtistNames || 'Artist not listed'}</p>
                 {artwork.Description && (

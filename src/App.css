@@ -1810,6 +1810,14 @@ footer {
 	background: #ffffff;
 }
 
+.exhibition-artworks-panel .exhibition-artwork-card {
+  display: inline-block;
+  vertical-align: top;
+  width: calc(33.333% - 16px);
+  box-sizing: border-box;
+  margin: 8px;
+}
+
 .exhibition-artwork-card h3 {
   margin: 0 0 12px;
   color: #75452f;
@@ -1818,6 +1826,16 @@ footer {
   font-weight: 600;
   line-height: 1.4;
   overflow-wrap: anywhere;
+}
+
+.exhibition-artwork-card h5 {
+  font-size: 18px;
+  font-weight: 600;
+  font-family: Georgia, serif;
+  color: #75452f;
+  line-height: 1.4;
+  margin: 10px 0;
+  overflow-wrap: break-word;
 }
 
 .exhibition-artwork-card p {
@@ -1837,13 +1855,25 @@ footer {
 
 .exhibition-artwork-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
-  margin-top: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px;
 }
 
 .exhibition-artworks-panel {
   scroll-margin-top: 24px;
+}
+
+.artwork-image {
+  width: 100%;
+  height: 220px;
+  object-fit: contain;
+  background-color: #f5f0e8;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.artwork-card {
+  overflow: hidden;
 }
 
 /* Mobile layout */

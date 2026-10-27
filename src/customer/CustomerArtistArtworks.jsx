@@ -67,6 +67,15 @@ export default function CustomerArtistArtworks() {
       <div className="visitor-options">
         {artworks.map(artwork => (
           <article className="visitor-option" key={artwork.ArtworkID}>
+            <img
+              src={`/MuseumImages/${artwork.ArtworkID}.jpeg`}
+              alt={artwork.Name}
+              className="artwork-image"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+              }}
+            />
+
             <h3>{artwork.Name}</h3>
 
             <p>

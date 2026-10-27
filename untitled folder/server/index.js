@@ -229,6 +229,88 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+
+app.post('/api/auth/change-password', requireAuth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (
+      typeof currentPassword !== 'string' ||
+      typeof newPassword !== 'string' ||
+      !currentPassword ||
+      !newPassword
+    ) {
+      return res.status(400).json({
+        error: 'Current password and new password are required.'
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        error: 'New password must be at least 8 characters.'
+      });
+    }
+
+    const [accounts] = await db.execute(
+      `SELECT PasswordHash
+       FROM USER_ACCOUNT
+       WHERE UserID = ?
+       LIMIT 1`,
+      [req.user.userId]
+    );
+
+    if (accounts.length === 0) {
+      return res.status(404).json({
+        error: 'Account not found.'
+      });
+    }
+
+    const passwordMatches = await bcrypt.compare(
+      currentPassword,
+      accounts[0].PasswordHash
+    );
+
+    if (!passwordMatches) {
+      return res.status(401).json({
+        error: 'Current password is incorrect.'
+      });
+    }
+
+    if (await bcrypt.compare(newPassword, accounts[0].PasswordHash)) {
+      return res.status(400).json({
+        error: 'Your new password must be different from your current password.'
+      });
+    }
+
+    const newPasswordHash = await bcrypt.hash(newPassword, 12);
+
+    await db.execute(
+      `UPDATE USER_ACCOUNT
+       SET PasswordHash = ?
+       WHERE UserID = ?`,
+      [newPasswordHash, req.user.userId]
+    );
+
+    res.clearCookie('museum_token', {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      path: '/'
+    });
+
+    res.json({
+      message: 'Password changed successfully. Please log in again.'
+    });
+  } catch (error) {
+    console.error('Change password error:', error.message);
+
+    res.status(500).json({
+      error: 'Could not change password. Please try again.'
+    });
+  }
+});
+
+
 // Check admin session
 app.get('/api/auth/admin/me', requireAuth, requireAdmin, (req, res) => {
   res.json({
@@ -1112,6 +1194,194 @@ app.delete('/api/artworks/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+
+/* =========================
+   VISITOR ROUTES
+========================= */
+
+// Get all visitors
+app.get('/api/visitors', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      'SELECT VisitorID, FirstName, MiddleName, LastName, Email, Phone FROM VISITOR ORDER BY VisitorID'
+    );
+
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching visitors:', error.message);
+    res.status(500).json({ error: 'Failed to fetch visitors' });
+  }
+});
+
+// Add a visitor
+app.post('/api/visitors', requireAuth, requireAdmin, async (req, res) => {
+  const FirstName = String(req.body.FirstName || '').trim();
+  const MiddleName = String(req.body.MiddleName || '').trim();
+  const LastName = String(req.body.LastName || '').trim();
+  const Email = String(req.body.Email || '').trim().toLowerCase();
+  const Phone = String(req.body.Phone || '').trim();
+
+  if (!FirstName || !LastName) {
+    return res.status(400).json({
+      error: 'First name and last name are required'
+    });
+  }
+
+  if (
+    FirstName.length > 30 ||
+    MiddleName.length > 30 ||
+    LastName.length > 30 ||
+    Email.length > 50 ||
+    Phone.length > 15
+  ) {
+    return res.status(400).json({
+      error: 'One or more fields exceed the allowed length'
+    });
+  }
+
+  try {
+    const [nextIDs] = await db.query(
+      'SELECT COALESCE(MAX(VisitorID), 0) + 1 AS nextID FROM VISITOR'
+    );
+
+    await db.query(
+      `INSERT INTO VISITOR
+       (VisitorID, FirstName, MiddleName, LastName, Email, Phone)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        nextIDs[0].nextID,
+        FirstName,
+        MiddleName || null,
+        LastName,
+        Email || null,
+        Phone || null
+      ]
+    );
+
+    res.status(201).json({ message: 'Visitor added successfully' });
+  } catch (error) {
+    console.error('Error adding visitor:', error.message);
+    res.status(500).json({
+      error: 'Failed to add visitor. Check that the visitor ID is unique.'
+    });
+  }
+});
+
+// Update a visitor
+app.put('/api/visitors/:id', requireAuth, requireAdmin, async (req, res) => {
+  const FirstName = String(req.body.FirstName || '').trim();
+  const MiddleName = String(req.body.MiddleName || '').trim();
+  const LastName = String(req.body.LastName || '').trim();
+  const Email = String(req.body.Email || '').trim().toLowerCase();
+  const Phone = String(req.body.Phone || '').trim();
+
+  if (!FirstName || !LastName) {
+    return res.status(400).json({
+      error: 'First name and last name are required'
+    });
+  }
+
+  if (
+    FirstName.length > 30 ||
+    MiddleName.length > 30 ||
+    LastName.length > 30 ||
+    Email.length > 50 ||
+    Phone.length > 15
+  ) {
+    return res.status(400).json({
+      error: 'One or more fields exceed the allowed length'
+    });
+  }
+
+  try {
+    const [result] = await db.query(
+      `UPDATE VISITOR
+       SET FirstName = ?, MiddleName = ?, LastName = ?, Email = ?, Phone = ?
+       WHERE VisitorID = ?`,
+      [
+        FirstName,
+        MiddleName || null,
+        LastName,
+        Email || null,
+        Phone || null,
+        req.params.id
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      const [rows] = await db.query(
+        'SELECT VisitorID FROM VISITOR WHERE VisitorID = ?',
+        [req.params.id]
+      );
+
+      if (rows.length === 0) {
+        return res.status(404).json({ error: 'Visitor not found' });
+      }
+    }
+
+    res.json({ message: 'Visitor updated successfully' });
+  } catch (error) {
+    console.error('Error updating visitor:', error.message);
+    res.status(500).json({ error: 'Failed to update visitor' });
+  }
+});
+
+// Delete a visitor only if no related records exist
+app.delete('/api/visitors/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const visitorID = Number(req.params.id);
+
+    if (!Number.isInteger(visitorID) || visitorID <= 0) {
+      return res.status(400).json({ error: 'Invalid visitor ID' });
+    }
+
+    const [visitors] = await db.query(
+      'SELECT VisitorID FROM VISITOR WHERE VisitorID = ?',
+      [visitorID]
+    );
+
+    if (visitors.length === 0) {
+      return res.status(404).json({ error: 'Visitor not found' });
+    }
+
+    const [tickets] = await db.query(
+      'SELECT 1 FROM TICKET WHERE VisitorID = ? LIMIT 1',
+      [visitorID]
+    );
+
+    const [memberships] = await db.query(
+      'SELECT 1 FROM MEMBERSHIP WHERE VisitorID = ? LIMIT 1',
+      [visitorID]
+    );
+
+    const [accounts] = await db.query(
+      'SELECT 1 FROM USER_ACCOUNT WHERE VisitorID = ? LIMIT 1',
+      [visitorID]
+    );
+
+    if (
+      tickets.length > 0 ||
+      memberships.length > 0 ||
+      accounts.length > 0
+    ) {
+      return res.status(409).json({
+        error: 'This visitor has tickets, memberships, or an account and cannot be deleted.'
+      });
+    }
+
+    await db.query(
+      'DELETE FROM VISITOR WHERE VisitorID = ?',
+      [visitorID]
+    );
+
+    res.json({ message: 'Visitor deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting visitor:', error.message);
+    res.status(500).json({ error: 'Failed to delete visitor' });
+  }
+});
+
+
 // Get all employees
 app.get('/api/employees', async (req, res) => {
   try {
@@ -1263,6 +1533,7 @@ app.get('/api/tickets', async (req, res) => {
         T.VisitDate,
         T.Price,
         T.Type,
+        T.Status,
         T.VisitorID,
         T.ExhibitionID,
         T.GeneralAdmissionTicketID,
@@ -1281,6 +1552,72 @@ app.get('/api/tickets', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch tickets' })
   }
 })
+
+app.get('/api/my-tickets', requireAuth, async (req, res) => {
+  try {
+    if (req.user.role !== 'VISITOR' || !req.user.VisitorID) {
+      return res.status(403).json({ error: 'Visitor account required.' })
+    }
+
+    const [tickets] = await db.execute(
+      `SELECT TicketID, PurchaseDate, VisitDate, Price, Type,
+        VisitorID, ExhibitionID, GeneralAdmissionTicketID, Status
+        FROM TICKET
+        WHERE VisitorID = ?
+        ORDER BY VisitDate DESC`,
+      [req.user.VisitorID]
+    )
+
+    res.json(tickets)
+  } catch (error) {
+    console.error('Error fetching visitor tickets:', error)
+    res.status(500).json({ error: 'Could not load your tickets.' })
+  }
+})
+
+// Cancel one of the logged-in visitor's tickets
+app.put('/api/my-tickets/:id/cancel', requireAuth, async (req, res) => {
+  try {
+    if (req.user.role !== 'VISITOR' || !req.user.VisitorID) {
+      return res.status(403).json({
+        error: 'Visitor account required.'
+      });
+    }
+
+    const ticketID = Number(req.params.id);
+
+    if (!Number.isInteger(ticketID) || ticketID <= 0) {
+      return res.status(400).json({
+        error: 'Invalid ticket ID.'
+      });
+    }
+
+    const [result] = await db.execute(
+      `UPDATE TICKET
+       SET Status = 'Cancelled'
+       WHERE TicketID = ?
+         AND VisitorID = ?
+         AND Status = 'Active'
+         AND VisitDate >= CURDATE()`,
+      [ticketID, req.user.VisitorID]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(400).json({
+        error: 'Ticket could not be cancelled. It may not belong to you, may already be cancelled, or its visit date may have passed.'
+      });
+    }
+
+    res.json({
+      message: 'Ticket cancelled successfully.'
+    });
+  } catch (error) {
+    console.error('Error cancelling ticket:', error.message);
+    res.status(500).json({
+      error: 'Could not cancel ticket.'
+    });
+  }
+});
 
 // Get visitors for the ticket form
 app.get('/api/ticket-options/visitors', async (req, res) => {

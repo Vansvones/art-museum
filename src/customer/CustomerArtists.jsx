@@ -52,7 +52,16 @@ export default function CustomerArtists() {
               navigate(`/customer/artists/${artist.ArtistID}`)
             }
           }}
-        >
+          >
+          <img
+            src={`/MuseumArtistImages/${artist.ArtistID}.jpeg`}
+            alt={`${artist.FirstName} ${artist.LastName}`}
+            className="artist-image"
+            onError={e => {
+              e.currentTarget.style.display = 'none'
+            }}
+          />
+
           <h3>
             {artist.FirstName}{' '}
             {artist.MiddleName ? `${artist.MiddleName} ` : ''}

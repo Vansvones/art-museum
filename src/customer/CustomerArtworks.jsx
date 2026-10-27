@@ -38,7 +38,7 @@ function CustomerArtworks() {
   )
 
   return (
-    <div className="galleries-page">
+    <div className="galleries-page customer-artworks-page">
       <h2>Explore Artworks</h2>
       <p>Browse the museum collection.</p>
 

@@ -67,16 +67,20 @@ export default function MyTickets() {
 
   if (loading) return <p>Loading your tickets...</p>
 
-  if (error) {
+  
+    if (error) {
     return (
-      <section>
-        <h2>My Tickets</h2>
-        <p>{error}</p>
-        <Link to="/login">Log In</Link>
-      </section>
-    )
-  }
-
+        <section className="customer-account">
+        <div className="account-card">
+            <h2>My Tickets</h2>
+            <p>{error}</p>
+            <Link className="account-link" to="/login">
+            Log In
+            </Link>
+        </div>
+        </section>
+        )
+    }
   
 return (
   <section className="my-tickets-page">

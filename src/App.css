@@ -3620,3 +3620,158 @@ footer {
 		padding: 18px;
 	}
 }
+
+
+/* MEMBERSHIPS PAGE */
+.memberships-page {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px 40px;
+  box-sizing: border-box;
+  color: #302820;
+}
+
+/* Page heading */
+.memberships-page .exhibitions-header {
+  margin-bottom: 24px;
+}
+
+.memberships-page .exhibitions-header h2 {
+  margin-bottom: 8px;
+  color: #75452f;
+}
+
+.memberships-page .exhibitions-header p {
+  margin-top: 0;
+}
+
+/* Assign membership form */
+.memberships-page .exhibition-form {
+  margin-bottom: 28px;
+}
+
+.memberships-page .exhibition-form h3 {
+  color: #75452f;
+}
+
+/* Form dropdowns */
+.memberships-page .exhibition-field select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 43px;
+  margin: 0;
+  padding: 11px 12px;
+  border: 1px solid #d7cec3;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #302820;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.memberships-page .exhibition-field select:focus {
+  outline: 2px solid rgba(117, 69, 47, 0.18);
+  border-color: #75452f;
+}
+
+/* Assign membership button */
+.memberships-page .exhibition-form-actions button {
+  cursor: pointer;
+}
+
+.memberships-page .exhibition-form-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Search input */
+.memberships-page .memberships-search {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 24px;
+  padding: 11px 12px;
+  border: 1px solid #d7cec3;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #302820;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+}
+
+.memberships-page .memberships-search:focus {
+  outline: 2px solid rgba(117, 69, 47, 0.18);
+  border-color: #75452f;
+}
+
+/* Membership list heading */
+.memberships-page .customer-content > h2 {
+  margin-bottom: 20px;
+  color: #75452f;
+}
+
+/* Membership cards */
+.memberships-page .customer-card {
+  box-sizing: border-box;
+}
+
+/* Error message */
+.memberships-page .error-message {
+  color: #a12622;
+}
+
+/* Smaller screens */
+@media (max-width: 600px) {
+  .memberships-page .exhibition-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .memberships-page .memberships-search {
+    width: 100%;
+  }
+}
+
+
+/* MEMBERSHIPS BUTTONS */
+.memberships-page button,
+.customer-page .customer-card button {
+  background-color: #75452f;
+  color: #ffffff;
+  border: 1px solid #75452f;
+  border-radius: 5px;
+  padding: 10px 18px;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.memberships-page button:hover:not(:disabled) {
+  background-color: #5d3524;
+  border-color: #5d3524;
+  box-shadow: 0 2px 5px rgba(48, 40, 32, 0.18);
+}
+
+.memberships-page button:focus-visible {
+  outline: 2px solid #75452f;
+  outline-offset: 3px;
+}
+
+.memberships-page button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.memberships-page .exhibition-form {
+  border: 1px solid #d7cec3;
+  border-radius: 6px;
+  padding: 24px;
+  background-color: #ffffff;
+  box-sizing: border-box;
+}
+

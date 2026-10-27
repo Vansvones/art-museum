@@ -64,6 +64,14 @@ function AdminDashboard() {
         </div>
 
         <div className="admin-card">
+          <h3>Manage Memberships</h3>
+          <p>View and manage museum visitor memberships.</p>
+          <Link to="/admin/memberships">
+            <button type="button">Manage Memberships</button>
+          </Link>
+        </div>
+
+        <div className="admin-card">
           <h3>Reports</h3>
           <p>Review museum statistics and activity reports.</p>
           <Link to="/admin/data-report">

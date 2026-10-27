@@ -21,7 +21,7 @@ import Login from './auth/Login'
 import Register from './auth/Register'
 import RequireAdmin from './auth/RequireAdmin';
 import Stores from './pages/Stores'
-import DataReport from './pages/Data-report'
+import DataReport from './pages/DataReport'
 import './App.css'
 
 function Home() {

@@ -362,7 +362,9 @@ function Tickets() {
               <p><strong>Purchase Date:</strong> {formatDate(ticket.PurchaseDate)}</p>
               <p><strong>Visit Date:</strong> {formatDate(ticket.VisitDate)}</p>
               <p><strong>Price:</strong> {ticket.Price ?? 'Not specified'}</p>
-
+              <p>
+                <strong>Status:</strong> {ticket.Status || 'Active'}
+              </p>
               <button onClick={() => startEditing(ticket)}>Edit</button>
               <button onClick={() => deleteTicket(ticket.TicketID)}>
                 Delete

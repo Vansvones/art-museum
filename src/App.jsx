@@ -19,6 +19,7 @@ import CustomerArtistArtworks from './customer/CustomerArtistArtworks'
 import CustomerAccount from './customer/CustomerAccount'
 import MyTickets from './customer/MyTickets'
 import Tickets from './pages/Tickets'
+import Memberships from './pages/Memberships'
 import AdminDashboard from './admin/AdminDashboard'
 import Login from './auth/Login'
 import Register from './auth/Register'
@@ -196,6 +197,7 @@ function AdminLayout() {
         <Link to="/admin/employees">Manage Employees</Link>
         <Link to="/admin/visitors">Manage Visitors</Link>
         <Link to="/admin/tickets">Manage Tickets</Link>
+        <Link to="/admin/memberships">Manage Memberships</Link>
         <Link to="/">Main Home</Link>
 
         <button type="button" onClick={handleLogout}>
@@ -213,6 +215,7 @@ function AdminLayout() {
         <Route path="/employees" element={<Employees />} />
         <Route path="/visitors" element={<Visitors />} />
         <Route path="/tickets" element={<Tickets />} />
+        <Route path="/memberships" element={<Memberships />} />
       </Routes>
     </>
   )

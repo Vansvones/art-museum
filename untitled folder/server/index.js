@@ -1354,20 +1354,19 @@ app.delete('/api/visitors/:id', requireAuth, requireAdmin, async (req, res) => {
       [visitorID]
     );
 
-    const [accounts] = await db.query(
-      'SELECT 1 FROM USER_ACCOUNT WHERE VisitorID = ? LIMIT 1',
-      [visitorID]
-    );
-
     if (
       tickets.length > 0 ||
-      memberships.length > 0 ||
-      accounts.length > 0
+      memberships.length > 0
     ) {
       return res.status(409).json({
         error: 'This visitor has tickets, memberships, or an account and cannot be deleted.'
       });
     }
+
+    await db.query(
+      'DELETE FROM USER_ACCOUNT WHERE VisitorID = ?',
+      [visitorID]
+    );
 
     await db.query(
       'DELETE FROM VISITOR WHERE VisitorID = ?',
@@ -2028,6 +2027,247 @@ app.get('/api/my-memberships', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch memberships' })
   }
 })
+
+// Get all memberships for the admin page
+app.get('/api/memberships', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT
+        M.MembershipID,
+        M.VisitorID,
+        V.FirstName,
+        V.LastName,
+        V.Email,
+        M.MembershipType,
+        M.StartDate,
+        M.EndDate,
+        M.Price
+      FROM MEMBERSHIP M
+      LEFT JOIN VISITOR V ON M.VisitorID = V.VisitorID
+      ORDER BY M.MembershipID
+    `)
+
+    res.json(rows)
+  } catch (error) {
+    console.error('Error fetching memberships:', error.message)
+    res.status(500).json({ error: 'Failed to fetch memberships' })
+  }
+})
+
+
+ // Add a membership to a visitor (admin only)
+app.post('/api/memberships', requireAuth, requireAdmin, async (req, res) => {
+  const { VisitorID, MembershipType } = req.body;
+
+  const prices = {
+    Individual: 85.00,
+    Dual: 120.00,
+    Family: 150.00,
+    Student: 45.00,
+    Senior: 65.00
+  };
+
+  const visitorID = Number(VisitorID);
+
+  if (!Number.isInteger(visitorID) || visitorID <= 0) {
+    return res.status(400).json({
+      error: 'Please select a valid visitor.'
+    });
+  }
+
+  if (!Object.hasOwn(prices, MembershipType)) {
+    return res.status(400).json({
+      error: 'Please select a valid membership type.'
+    });
+  }
+
+  try {
+    const [visitors] = await db.query(
+      'SELECT VisitorID FROM VISITOR WHERE VisitorID = ?',
+      [visitorID]
+    );
+
+    if (visitors.length === 0) {
+      return res.status(404).json({
+        error: 'Visitor not found.'
+      });
+    }
+
+    const [existing] = await db.query(
+      `SELECT MembershipID
+       FROM MEMBERSHIP
+       WHERE VisitorID = ?
+         AND (EndDate IS NULL OR EndDate >= CURDATE())
+       LIMIT 1`,
+      [visitorID]
+    );
+
+    if (existing.length > 0) {
+      return res.status(409).json({
+        error: 'This visitor already has an active membership.'
+      });
+    }
+
+    const [ids] = await db.query(
+      'SELECT COALESCE(MAX(MembershipID), 0) + 1 AS nextID FROM MEMBERSHIP'
+    );
+
+    const membershipID = ids[0].nextID;
+
+    await db.query(
+      `INSERT INTO MEMBERSHIP
+       (MembershipID, VisitorID, MembershipType, StartDate, EndDate, Price)
+       VALUES (?, ?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 1 YEAR), ?)`,
+      [membershipID, visitorID, MembershipType, prices[MembershipType]]
+    );
+
+    res.status(201).json({
+      message: 'Membership added to visitor successfully.',
+      MembershipID: membershipID
+    });
+  } catch (error) {
+    console.error('Error adding membership:', error.message);
+
+    res.status(500).json({
+      error: 'Failed to add membership.'
+    });
+  }
+});
+
+
+// Delete a membership (admin only)
+app.delete(
+  '/api/memberships/:id',
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const membershipID = Number(req.params.id)
+
+      if (!Number.isInteger(membershipID) || membershipID <= 0) {
+        return res.status(400).json({ error: 'Invalid membership ID.' })
+      }
+
+      const [result] = await db.query(
+        'DELETE FROM MEMBERSHIP WHERE MembershipID = ?',
+        [membershipID]
+      )
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: 'Membership not found.' })
+      }
+
+      res.json({ message: 'Membership deleted successfully.' })
+    } catch (error) {
+      console.error('Error deleting membership:', error.message)
+      res.status(500).json({ error: 'Failed to delete membership.' })
+    }
+  }
+)
+
+// Cancel one of the logged-in visitor's memberships
+app.delete('/api/my-memberships/:membershipID', requireAuth, async (req, res) => {
+  try {
+    if (req.user.role !== 'VISITOR' || !req.user.VisitorID) {
+      return res.status(403).json({
+        error: 'A visitor account is required.'
+      });
+    }
+
+    const membershipID = Number(req.params.membershipID);
+
+    if (!Number.isInteger(membershipID) || membershipID <= 0) {
+      return res.status(400).json({
+        error: 'Invalid membership ID.'
+      });
+    }
+
+    const [result] = await db.execute(
+      `DELETE FROM MEMBERSHIP
+       WHERE MembershipID = ? AND VisitorID = ?`,
+      [membershipID, req.user.VisitorID]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        error: 'Membership not found or does not belong to you.'
+      });
+    }
+
+    res.json({
+      message: 'Membership cancelled successfully.'
+    });
+  } catch (error) {
+    console.error('Error cancelling membership:', error.message);
+    res.status(500).json({
+      error: 'Could not cancel membership.'
+    });
+  }
+});
+
+app.post('/api/memberships/purchase', requireAuth, async (req, res) => {
+  const visitorID = req.user.VisitorID;
+  const { MembershipType } = req.body;
+
+  if (req.user.role !== 'VISITOR' || !visitorID) {
+    return res.status(403).json({
+      error: 'A visitor account is required.'
+    });
+  }
+
+  const prices = {
+    Individual: 85.00,
+    Dual: 120.00,
+    Family: 150.00,
+    Student: 45.00,
+    Senior: 65.00
+  };
+
+  if (!Object.hasOwn(prices, MembershipType)) {
+    return res.status(400).json({
+      error: 'Invalid membership type.'
+    });
+  }
+
+  try {
+    const [existing] = await db.query(
+      `SELECT MembershipID
+      FROM MEMBERSHIP
+      WHERE VisitorID = ?
+        AND (EndDate IS NULL OR EndDate >= CURDATE())
+      LIMIT 1`,
+      [visitorID]
+    );
+
+    if (existing.length > 0) {
+      return res.status(409).json({
+        error: 'You already have an active membership.'
+      });
+    }
+
+    const [ids] = await db.query(
+      'SELECT COALESCE(MAX(MembershipID), 0) + 1 AS nextID FROM MEMBERSHIP'
+    );
+
+    const membershipID = ids[0].nextID;
+
+    await db.query(
+      `INSERT INTO MEMBERSHIP
+       (MembershipID, VisitorID, MembershipType, StartDate, EndDate, Price)
+       VALUES (?, ?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 1 YEAR), ?)`,
+      [membershipID, visitorID, MembershipType, prices[MembershipType]]
+    );
+
+    res.status(201).json({
+      message: 'Membership purchased successfully.'
+    });
+  } catch (error) {
+    console.error('Membership purchase error:', error.message);
+    res.status(500).json({
+      error: 'Could not purchase membership.'
+    });
+  }
+});
 
 
 app.get('/api/parking-lots', async (req, res) => {

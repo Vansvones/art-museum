@@ -56,8 +56,8 @@ function CustomerMemberships() {
 
   return (
     <div className="customer-page">
-      <section className="customer-content">
-        <h1>Museum Memberships</h1>
+      <section className="galleries-page">
+        <h2>Museum Memberships</h2>
         <p>
           Explore membership options and find the right fit for your
           museum visits.

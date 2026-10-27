@@ -177,7 +177,7 @@ function Artists() {
 					}
 				}}
 			>
-				{showForm ? 'Cancel' : '+ Add Artist'}
+				{showForm ? 'Cancel' : 'Add Artist'}
 			</button>
 
 			{showForm && (
@@ -268,7 +268,15 @@ function Artists() {
 
 			<div className="artist-list">
 				{filteredArtists.map(artist => (
-					<div className="artist-card" key={artist.ArtistID}>
+						<div className="artist-card" key={artist.ArtistID}>
+							<img
+								src={`/MuseumArtistImages/${artist.ArtistID}.jpeg`}
+								alt={`${artist.FirstName} ${artist.LastName}`}
+								className="artist-image"
+								onError={e => {
+									e.currentTarget.style.display = 'none'
+								}}
+							/>
 						<h3>
 							{[artist.FirstName, artist.MiddleName, artist.LastName]
 								.filter(Boolean)

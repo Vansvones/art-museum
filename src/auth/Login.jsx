@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 
-export default function Login() {
+export default function Login({onLogin}) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
+  const message = location.state?.message
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -27,6 +29,7 @@ export default function Login() {
         throw new Error(data.error || 'Login failed.')
       }
 
+      onLogin(data.user)
       navigate(data.user.role === 'ADMIN' ? '/admin' : '/customer')
     } catch (err) {
       setError(err.message || 'Could not connect to the server.')
@@ -35,41 +38,74 @@ export default function Login() {
     }
   }
 
+  
   return (
     <section className="login-page">
-      <h2>Museum Login</h2>
+      <div className="login-card">
+        <Link to="/" className="login-back-link">
+          ← Back to Home
+        </Link>
 
-      <form onSubmit={handleSubmit}>
-        <label htmlFor="email">Email</label>
-        <input
-          id="email"
-          type="email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          autoComplete="username"
-          required
-        />
+        <p className="login-eyebrow">MUSEUM OF FINE ARTS</p>
 
-        <label htmlFor="password">Password</label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          autoComplete="current-password"
-          required
-        />
+        <h2>Welcome back.</h2>
 
-        {error && <p role="alert">{error}</p>}
+        <p className="login-description">
+          Sign in to continue your museum experience.
+        </p>
 
-        <button type="submit" disabled={loading}>
-          {loading ? 'Logging in...' : 'Log In'}
-        </button>
-      </form>
+        <form onSubmit={handleSubmit}>
+          <div className="login-field">
+            <label htmlFor="email">Email address</label>
+            <input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              autoComplete="username"
+              required
+            />
+          </div>
 
-      <p>
-        <Link to="/">Back to Home</Link>
-      </p>
+          <div className="login-field">
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              placeholder="Enter your password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </div>
+
+          {message && (
+            <p role="status">
+              {message}
+            </p>
+          )}
+          {error && (
+            <p className="login-error" role="alert">
+              {error}
+            </p>
+          )}
+
+          <button
+            className="login-submit"
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? 'Logging in...' : 'Log In'}
+          </button>
+
+        <div className="login-register">
+          <span>Don't have an account?</span>{' '}
+          <Link to="/register">Create one</Link>
+        </div>
+        </form>
+      </div>
     </section>
   )
 }

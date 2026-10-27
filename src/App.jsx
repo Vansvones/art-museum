@@ -21,6 +21,7 @@ import Login from './auth/Login'
 import Register from './auth/Register'
 import RequireAdmin from './auth/RequireAdmin';
 import Stores from './pages/Stores'
+import DataReport from './pages/Data-report'
 import './App.css'
 
 function Home() {
@@ -131,6 +132,7 @@ function AdminLayout() {
         <Route path="/exhibitions" element={<Exhibitions />} />
         <Route path="/employees" element={<Employees />} />
         <Route path="/tickets" element={<Tickets />} />
+        <Route path="/data-report" element={<DataReport />} />
       </Routes>
     </>
   )

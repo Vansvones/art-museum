@@ -128,7 +128,19 @@ function Home({user, authChecked}) {
 }
 
 
-function VisitorLayout( {onLogout} ) {
+function VisitorLayout( {onLogout, user} ) {
+  async function handleLogout() {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      })
+    } catch (error) {
+      console.error('Logout request failed:', error)
+    } finally {
+      onLogout()
+    }
+  }
   return (
     <>
       <nav className="visitor-nav">
@@ -144,6 +156,11 @@ function VisitorLayout( {onLogout} ) {
         <Link to="/customer/parking">Parking</Link>
         <Link to="/">Main Home</Link>
         <Link to="/customer/account">My Account</Link>
+        {user && (
+          <button type="button" onClick={handleLogout}>
+            Log Out
+          </button>
+        )}
       </nav>
 
       <Routes>
@@ -169,9 +186,8 @@ function VisitorLayout( {onLogout} ) {
 }
 
 
-function AdminLayout() {
+function AdminLayout({user}) {
   const navigate = useNavigate()
-
   async function handleLogout() {
     try {
       await fetch('/api/auth/logout', {
@@ -198,11 +214,11 @@ function AdminLayout() {
         <Link to="/admin/visitors">Manage Visitors</Link>
         <Link to="/admin/tickets">Manage Tickets</Link>
         <Link to="/admin/memberships">Manage Memberships</Link>
-        <Link to="/">Main Home</Link>
-
-        <button type="button" onClick={handleLogout}>
-          Log Out
-        </button>
+        {user && (
+          <button type="button" onClick={handleLogout}>
+            Log Out
+          </button>
+        )}
       </nav>
 
       <Routes>
@@ -275,12 +291,24 @@ function App() {
           />
           <Route
             path="/customer/*"
-            element={<VisitorLayout onLogout={() => setUser(null)} />}
+            element={
+              <VisitorLayout
+                user={user}
+                onLogout={() => {
+                  setUser(null)
+                  window.location.href = '/'
+                }}
+              />
+            }
           />
           <Route path="/register" element={<Register />} />
           <Route path="/change-password" element={<ChangePassword />} />
-          <Route path="/admin/*" element={<RequireAdmin><AdminLayout />
-          </RequireAdmin>
+          <Route
+            path="/admin/*"
+            element={
+              <RequireAdmin>
+                <AdminLayout user={user} />
+              </RequireAdmin>
             }
           />
         </Routes>

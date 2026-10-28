@@ -199,9 +199,7 @@ main {
 }
 
 
-/* =====================================
-   ARTWORKS PAGE
-   ===================================== */
+/* ARTWORKS PAGE */
 
 .artworks-page {
 	width: min(1100px, calc(100% - 48px));
@@ -226,7 +224,7 @@ main {
 	line-height: 1.7;
 }
 
-/* Artwork form matches the Exhibitions form */
+
 .artworks-page .artwork-form {
 	display: block;
 	width: 100%;
@@ -516,9 +514,7 @@ footer {
 }
 
 
-/* =====================================
-   EMPLOYEE PAGE
-   ===================================== */
+/* EMPLOYEE PAGE */
 
 .employees-page {
 	width: min(1100px, calc(100% - 48px));
@@ -747,9 +743,7 @@ footer {
 	color: #922d24;
 }
 
-/* =====================================
-   GALLERY MANAGEMENT PAGE
-   ===================================== */
+/* GALLERY MANAGEMENT PAGE*/
 
 .galleries-page {
 	width: min(1100px, calc(100% - 48px));
@@ -882,7 +876,6 @@ footer {
 	background: #e0d6ca;
 }
 
-/* Gallery heading and search are kept separate from the card grid. */
 .galleries-page .gallery-section {
 	width: 100%;
 	margin: 0;
@@ -1007,9 +1000,7 @@ footer {
   font-size: 26px;
 }
 
-/* =====================================
-   RESPONSIVE LAYOUT
-   ===================================== */
+/* RESPONSIVE LAYOUT*/
 
 @media (max-width: 800px) {
 	.employees-page .employee-form-grid {
@@ -1105,10 +1096,6 @@ footer {
 	}
 }
 
-
-
-/* Consistent museum button styling */
-
 .hero button,
 .admin-card button,
 .artworks-page button,
@@ -1164,8 +1151,6 @@ footer {
 }
 
 
-
-/* Match the Employees page */
 .tickets-page {
   width: min(1100px, calc(100% - 48px));
   max-width: none;
@@ -1383,8 +1368,6 @@ footer {
   margin: 0 12px 16px 0;
 }
 
-/* Keep the layout centered on smaller screens */
-
 @media (max-width: 700px) {
 	.tickets-page {
 		width: calc(100% - 32px);
@@ -1398,9 +1381,7 @@ footer {
 
 
 
-/* =====================================
-   EXHIBITIONS PAGE
-   ===================================== */
+/* EXHIBITIONS PAGE */
 
 .exhibitions-page {
 	width: min(1100px, calc(100% - 48px));
@@ -1677,8 +1658,6 @@ footer {
 	}
 }
 
-
-/* Make exhibition cards feel clickable */
 .exhibition-card {
 	cursor: pointer;
 	transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -1899,7 +1878,6 @@ footer {
 	}
 }
 
-/* Match visitor exhibition artworks to admin layout */
 .exhibitions-page .exhibition-artwork-list .exhibition-artwork-card {
   display: flex;
   flex-direction: column;
@@ -1946,9 +1924,7 @@ footer {
 }
 
 
-/* =====================================
-   ARTISTS PAGE
-   ===================================== */
+/* ARTISTS PAGE */
 
 .artists-page {
 	width: min(1100px, calc(100% - 48px));
@@ -2373,15 +2349,11 @@ footer {
 }
 
 
-/* =====================================
-   MAIN HOME PAGE
-   ===================================== */
+/*  MAIN HOME PAGE */
 
 .home-page {
   color: #302820;
 }
-
-/* Hero */
 
 .home-hero {
   display: flex;

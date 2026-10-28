@@ -26,6 +26,7 @@ import Register from './auth/Register'
 import ChangePassword from './auth/ChangePassword'
 import RequireAdmin from './auth/RequireAdmin';
 import Stores from './pages/Stores'
+import DataReport from './pages/DataReport'
 import Visitors from './pages/Visitors'
 import './App.css'
 
@@ -231,6 +232,7 @@ function AdminLayout({user}) {
         <Route path="/employees" element={<Employees />} />
         <Route path="/visitors" element={<Visitors />} />
         <Route path="/tickets" element={<Tickets />} />
+        <Route path="/data-report" element={<DataReport />} />
         <Route path="/memberships" element={<Memberships />} />
       </Routes>
     </>

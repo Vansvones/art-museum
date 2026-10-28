@@ -74,6 +74,9 @@ function AdminDashboard() {
         <div className="admin-card">
           <h3>Reports</h3>
           <p>Review museum statistics and activity reports.</p>
+          <Link to="/admin/data-report">
+            <button type="button">View Reports</button>
+          </Link>
         </div>
       </div>
     </div>

@@ -9,7 +9,9 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors({
-  origin: true, // this is really bad and temporary i just wanna test it out :sob:
+  origin: ['http://localhost:5173',
+    'https://art-museum-coral.vercel.app/',
+    /^https:\/\/art-museum.*\.vercel\.app$/], // for testing branches with deployment
   credentials: true
 }));
 

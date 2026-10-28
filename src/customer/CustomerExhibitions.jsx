@@ -9,7 +9,7 @@ export default function CustomerExhibitions() {
   const artworksSectionRef = useRef(null)
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/exhibitions')
+    fetch('/api/exhibitions')
       .then(response => {
         if (!response.ok) throw new Error('Failed to load exhibitions.')
         return response.json()
@@ -25,7 +25,7 @@ export default function CustomerExhibitions() {
 
       try {
         const response = await fetch(
-          `http://localhost:5000/api/exhibitions/${exhibition.ExhibitionID}/artworks`
+          `/api/exhibitions/${exhibition.ExhibitionID}/artworks`
         )
 
         if (!response.ok) {

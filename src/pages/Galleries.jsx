@@ -33,7 +33,7 @@ function Galleries() {
 	// Load galleries from the database
 	async function loadGalleries() {
 		try {
-			const response = await fetch('http://localhost:5000/api/galleries')
+			const response = await fetch('/api/galleries')
 
 			if (!response.ok) {
 				throw new Error('Failed to load galleries')
@@ -63,7 +63,7 @@ function Galleries() {
 		setExhibitions([])
 
 		try {
-			const response = await fetch('http://localhost:5000/api/exhibitions')
+			const response = await fetch('/api/exhibitions')
 
 			if (!response.ok) {
 				throw new Error('Failed to load exhibitions.')
@@ -131,7 +131,7 @@ function Galleries() {
 	}
 
 	async function getNextExhibitionId() {
-			const response = await fetch('http://localhost:5000/api/exhibitions')
+			const response = await fetch('/api/exhibitions')
 
 			if (!response.ok) {
 					throw new Error('Failed to get exhibition IDs.')
@@ -166,8 +166,8 @@ function Galleries() {
 
         const response = await fetch(
             isEditing
-                ? `http://localhost:5000/api/exhibitions/${editingExhibitionId}`
-                : 'http://localhost:5000/api/exhibitions',
+                ? `/api/exhibitions/${editingExhibitionId}`
+                : '/api/exhibitions',
             {
                 method: isEditing ? 'PUT' : 'POST',
                 credentials: 'include',
@@ -205,7 +205,7 @@ function Galleries() {
 
     try {
         const response = await fetch(
-            `http://localhost:5000/api/exhibitions/${id}`,
+            `/api/exhibitions/${id}`,
             {
                 method: 'DELETE',
                 credentials: 'include'
@@ -260,7 +260,7 @@ function Galleries() {
 
 			if (editingId !== null) {
 				response = await fetch(
-					`http://localhost:5000/api/galleries/${editingId}`,
+					`/api/galleries/${editingId}`,
 					{
 						method: 'PUT',
 						credentials: 'include',
@@ -273,7 +273,7 @@ function Galleries() {
 					? Math.max(...galleries.map(item => Number(item.GalleryID))) + 1
 					: 1
 
-				response = await fetch('http://localhost:5000/api/galleries', {
+				response = await fetch('/api/galleries', {
 					method: 'POST',
 					credentials: 'include',
 					headers: { 'Content-Type': 'application/json' },
@@ -323,7 +323,7 @@ function Galleries() {
 
 		try {
 			const response = await fetch(
-				`http://localhost:5000/api/galleries/${id}`,
+				`/api/galleries/${id}`,
 				{
 					method: 'DELETE',
 					credentials: 'include'

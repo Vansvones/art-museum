@@ -17,7 +17,7 @@ function Artists() {
 
 	async function loadArtists() {
 		try {
-			const response = await fetch('http://localhost:5000/api/artists')
+			const response = await fetch('/api/artists')
 
 			if (!response.ok) {
 				throw new Error()
@@ -67,7 +67,7 @@ function Artists() {
 				const nextId =
 					Math.max(0, ...artists.map(a => Number(a.ArtistID))) + 1
 
-				response = await fetch('http://localhost:5000/api/artists', {
+				response = await fetch('/api/artists', {
 					method: 'POST',
 					credentials: 'include',
 					headers: { 'Content-Type': 'application/json' },
@@ -78,7 +78,7 @@ function Artists() {
 				})
 			} else {
 				response = await fetch(
-					`http://localhost:5000/api/artists/${editingId}`,
+					`/api/artists/${editingId}`,
 					{
 						method: 'PUT',
 						credentials: 'include',
@@ -125,7 +125,7 @@ function Artists() {
 
 		try {
 			const response = await fetch(
-				`http://localhost:5000/api/artists/${id}`,
+				`/api/artists/${id}`,
 				{
 					method: 'DELETE',
 					credentials: 'include'

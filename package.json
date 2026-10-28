@@ -4,6 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "main": "./src/App.jsx",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "untitled\\ folder/server/index.js" }
+  ],
   "scripts": {
     "server": "node --env-file=.env ./untitled\\ folder/server/index.js",
     "client": "vite",

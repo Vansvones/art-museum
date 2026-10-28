@@ -38,7 +38,7 @@ function Stores() {
 
   async function loadStores() {
     try {
-      const response = await fetch('http://localhost:5000/api/stores')
+      const response = await fetch('/api/stores')
 
       if (!response.ok) {
         throw new Error('Failed to load stores')
@@ -55,7 +55,7 @@ function Stores() {
 
 async function loadItems() {
   try {
-    const response = await fetch('http://localhost:5000/api/items', {
+    const response = await fetch('/api/items', {
       credentials: 'include'
     })
 
@@ -77,7 +77,7 @@ async function loadStoreItems(storeID) {
 
   try {
     const response = await fetch(
-      `http://localhost:5000/api/stores/${storeID}/items`,
+      `/api/stores/${storeID}/items`,
       { credentials: 'include' }
     )
 
@@ -102,7 +102,7 @@ async function addItemToStore(event) {
 
   try {
     const response = await fetch(
-      `http://localhost:5000/api/stores/${selectedStore.StoreID}/items`,
+      `/api/stores/${selectedStore.StoreID}/items`,
       {
         method: 'POST',
         headers: {
@@ -144,7 +144,7 @@ async function saveItemPrice(itemID) {
     }
 
     const response = await fetch(
-      `http://localhost:5000/api/items/${itemID}/price`,
+      `/api/items/${itemID}/price`,
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -185,7 +185,7 @@ async function saveInventoryStock(itemID) {
 
   try {
     const response = await fetch(
-      `http://localhost:5000/api/stores/${selectedStore.StoreID}/items/${itemID}`,
+      `/api/stores/${selectedStore.StoreID}/items/${itemID}`,
       {
         method: 'PUT',
         credentials: 'include',
@@ -221,7 +221,7 @@ async function removeInventoryItem(itemID) {
 
   try {
     const response = await fetch(
-      `http://localhost:5000/api/stores/${selectedStore.StoreID}/items/${itemID}`,
+      `/api/stores/${selectedStore.StoreID}/items/${itemID}`,
       {
         method: 'DELETE',
         credentials: 'include'
@@ -281,8 +281,8 @@ async function removeInventoryItem(itemID) {
     try {
       const response = await fetch(
         editingId !== null
-          ? `http://localhost:5000/api/stores/${editingId}`
-          : 'http://localhost:5000/api/stores',
+          ? `/api/stores/${editingId}`
+          : '/api/stores',
         {
           method: editingId !== null ? 'PUT' : 'POST',
           credentials: 'include',
@@ -325,7 +325,7 @@ async function addItem(event) {
   }
 
   try {
-    const response = await fetch('http://localhost:5000/api/items', {
+    const response = await fetch('/api/items', {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -384,7 +384,7 @@ async function saveItemEdit(event) {
 
   try {
     const response = await fetch(
-      `http://localhost:5000/api/items/${editingItemId}`,
+      `/api/items/${editingItemId}`,
       {
         method: 'PUT',
         credentials: 'include',
@@ -424,7 +424,7 @@ async function deleteItem(id) {
   setItemSuccess('')
 
   try {
-    const response = await fetch(`http://localhost:5000/api/items/${id}`, {
+    const response = await fetch(`/api/items/${id}`, {
       method: 'DELETE',
       credentials: 'include'
     })
@@ -464,7 +464,7 @@ async function deleteItem(id) {
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/stores/${id}`,
+        `/api/stores/${id}`,
         {
           method: 'DELETE',
           credentials: 'include'

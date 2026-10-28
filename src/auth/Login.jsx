@@ -23,11 +23,24 @@ export default function Login({onLogin}) {
         body: JSON.stringify({ email, password })
       })
 
-      const data = await response.json()
+      
+      const text = await response.text()
+      let data = {}
+
+      try {
+        data = text ? JSON.parse(text) : {}
+      } catch {
+        throw new Error(`Server returned an invalid response: ${text.slice(0, 200)}`)
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Login failed.')
+        throw new Error(data.error || `Login failed (${response.status}).`)
       }
+
+      if (!data.user) {
+        throw new Error('Login response did not include a user.')
+      }
+
 
       onLogin(data.user)
       navigate(data.user.role === 'ADMIN' ? '/admin' : '/customer')

@@ -10,7 +10,7 @@ export default function CustomerGalleries() {
   const exhibitionsSectionRef = useRef(null)
 
   useEffect(() => {
-    fetch('http://localhost:3000/api/galleries')
+    fetch('http://localhost:5000/api/galleries')
       .then(response => {
         if (!response.ok) throw new Error('Failed to load galleries.')
         return response.json()
@@ -31,7 +31,7 @@ export default function CustomerGalleries() {
     setExhibitionsError('')
     setLoadingExhibitions(true)
 
-    fetch(`http://localhost:3000/api/exhibitions`)
+    fetch(`http://localhost:5000/api/exhibitions`)
       .then(response => {
         if (!response.ok) throw new Error('Failed to load exhibitions.')
         return response.json()

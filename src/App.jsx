@@ -174,7 +174,7 @@ function AdminLayout() {
 
   async function handleLogout() {
     try {
-      await fetch('http://localhost:3000/api/auth/logout', {
+      await fetch('http://localhost:5000/api/auth/logout', {
         method: 'POST',
         credentials: 'include'
       })
@@ -227,7 +227,7 @@ function App() {
   const [authChecked, setAuthChecked] = useState(false)
 
   useEffect(() => {
-    fetch('http://localhost:3000/api/auth/me', {
+    fetch('http://localhost:5000/api/auth/me', {
       credentials: 'include'
     })
       .then(response => {

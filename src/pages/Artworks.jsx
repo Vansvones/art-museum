@@ -19,7 +19,7 @@ function Artworks() {
 
   async function loadArtworks() {
     try {
-      const response = await fetch('http://localhost:3000/api/artworks')
+      const response = await fetch('http://localhost:5000/api/artworks')
       if (!response.ok) throw new Error()
       setArtworks(await response.json())
       setError('')
@@ -32,7 +32,7 @@ function Artworks() {
 
   async function loadArtists() {
     try {
-      const response = await fetch('http://localhost:3000/api/artists')
+      const response = await fetch('http://localhost:5000/api/artists')
       if (!response.ok) throw new Error()
       setArtists(await response.json())
     } catch {
@@ -87,7 +87,7 @@ function Artworks() {
       if (editingId === null) {
         const nextId = Math.max(0, ...artworks.map(a => a.ArtworkID)) + 1
 
-        response = await fetch('http://localhost:3000/api/artworks', {
+        response = await fetch('http://localhost:5000/api/artworks', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -95,7 +95,7 @@ function Artworks() {
       })
       } else {
         response = await fetch(
-        `http://localhost:3000/api/artworks/${editingId}`,
+        `http://localhost:5000/api/artworks/${editingId}`,
         {
           method: 'PUT',
           credentials: 'include',
@@ -145,7 +145,7 @@ function Artworks() {
 
     try {
       const response = await fetch(
-        `http://localhost:3000/api/artworks/${id}`,
+        `http://localhost:5000/api/artworks/${id}`,
         { method: 'DELETE', credentials: 'include' }
       )
 

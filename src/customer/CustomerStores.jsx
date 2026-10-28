@@ -11,7 +11,7 @@ function CustomerStores() {
   useEffect(() => {
     async function loadStores() {
       try {
-        const response = await fetch('http://localhost:3000/api/stores')
+        const response = await fetch('http://localhost:5000/api/stores')
 
         if (!response.ok) {
           throw new Error('Failed to load stores')
@@ -33,7 +33,7 @@ function CustomerStores() {
 
     try {
       const response = await fetch(
-        `http://localhost:3000/api/stores/${store.StoreID}/items`
+        `http://localhost:5000/api/stores/${store.StoreID}/items`
       )
 
       if (!response.ok) {

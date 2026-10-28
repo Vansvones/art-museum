@@ -22,7 +22,7 @@ function CustomerCheckout() {
     async function loadExhibitions() {
       try {
         const response = await fetch(
-          'http://localhost:3000/api/exhibitions'
+          'http://localhost:5000/api/exhibitions'
         )
 
         if (response.ok) {
@@ -69,7 +69,7 @@ function CustomerCheckout() {
 
   try {
     const response = await fetch(
-      'http://localhost:3000/api/tickets/purchase',
+      'http://localhost:5000/api/tickets/purchase',
       {
         method: 'POST',
         credentials: 'include',

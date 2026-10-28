@@ -11,7 +11,7 @@ export default function CustomerAccount({ onLogout }) {
   useEffect(() => {
     async function loadAccount() {
       try {
-        const response = await fetch('http://localhost:3000/api/auth/me', {
+        const response = await fetch('http://localhost:5000/api/auth/me', {
           credentials: 'include'
         })
 
@@ -34,7 +34,7 @@ export default function CustomerAccount({ onLogout }) {
 
   async function handleLogout() {
     try {
-      const response = await fetch('http://localhost:3000/api/auth/logout', {
+      const response = await fetch('http://localhost:5000/api/auth/logout', {
         method: 'POST',
         credentials: 'include'
       })

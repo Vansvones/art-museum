@@ -24,7 +24,7 @@ function Exhibitions() {
   // Load exhibitions from the database
   async function loadExhibitions() {
     try {
-      const response = await fetch('http://localhost:3000/api/exhibitions')
+      const response = await fetch('http://localhost:5000/api/exhibitions')
 
       if (!response.ok) {
         throw new Error('Failed to load exhibitions')
@@ -85,7 +85,7 @@ function Exhibitions() {
 
       if (editingId !== null) {
         response = await fetch(
-          `http://localhost:3000/api/exhibitions/${editingId}`,
+          `http://localhost:5000/api/exhibitions/${editingId}`,
           {
             method: 'PUT',
             credentials: 'include',
@@ -98,7 +98,7 @@ function Exhibitions() {
           ? Math.max(...exhibitions.map(item => Number(item.ExhibitionID))) + 1
           : 1
 
-        response = await fetch('http://localhost:3000/api/exhibitions', {
+        response = await fetch('http://localhost:5000/api/exhibitions', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -153,7 +153,7 @@ function Exhibitions() {
 
     try {
       const response = await fetch(
-        `http://localhost:3000/api/exhibitions/${id}`,
+        `http://localhost:5000/api/exhibitions/${id}`,
         { method: 'DELETE', credentials: 'include' }
       )
 
@@ -190,9 +190,9 @@ async function openExhibitionArtworks(exhibition) {
   try {
     const [artworksResponse, allArtworksResponse] = await Promise.all([
       fetch(
-        `http://localhost:3000/api/exhibitions/${exhibition.ExhibitionID}/artworks`
+        `http://localhost:5000/api/exhibitions/${exhibition.ExhibitionID}/artworks`
       ),
-      fetch('http://localhost:3000/api/artworks')
+      fetch('http://localhost:5000/api/artworks')
     ])
 
     if (!artworksResponse.ok || !allArtworksResponse.ok) {
@@ -222,7 +222,7 @@ async function addArtworkToExhibition() {
 
   try {
     const response = await fetch(
-      `http://localhost:3000/api/exhibitions/${selectedExhibition.ExhibitionID}/artworks`,
+      `http://localhost:5000/api/exhibitions/${selectedExhibition.ExhibitionID}/artworks`,
       {
         method: 'POST',
         credentials: 'include',
@@ -252,7 +252,7 @@ async function removeArtworkFromExhibition(artworkID) {
 
   try {
     const response = await fetch(
-      `http://localhost:3000/api/exhibitions/${selectedExhibition.ExhibitionID}/artworks/${artworkID}`,
+      `http://localhost:5000/api/exhibitions/${selectedExhibition.ExhibitionID}/artworks/${artworkID}`,
       {
         method: 'DELETE',
         credentials: 'include'

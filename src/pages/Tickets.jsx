@@ -30,9 +30,9 @@ function Tickets() {
     try {
       const [ticketResponse, visitorResponse, exhibitionResponse] =
         await Promise.all([
-          fetch('http://localhost:3000/api/tickets'),
-          fetch('http://localhost:3000/api/ticket-options/visitors'),
-          fetch('http://localhost:3000/api/ticket-options/exhibitions')
+          fetch('http://localhost:5000/api/tickets'),
+          fetch('http://localhost:5000/api/ticket-options/visitors'),
+          fetch('http://localhost:5000/api/ticket-options/exhibitions')
         ])
 
       if (
@@ -109,7 +109,7 @@ function Tickets() {
 
       if (editingId !== null) {
         response = await fetch(
-          `http://localhost:3000/api/tickets/${editingId}`,
+          `http://localhost:5000/api/tickets/${editingId}`,
           {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -122,7 +122,7 @@ function Tickets() {
           ? Math.max(...tickets.map(ticket => Number(ticket.TicketID))) + 1
           : 1
 
-        response = await fetch('http://localhost:3000/api/tickets', {
+        response = await fetch('http://localhost:5000/api/tickets', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -176,7 +176,7 @@ function Tickets() {
 
     try {
       const response = await fetch(
-        `http://localhost:3000/api/tickets/${id}`,
+        `http://localhost:5000/api/tickets/${id}`,
         { method: 'DELETE', credentials: 'include' }
       )
 

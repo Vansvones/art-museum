@@ -11,7 +11,7 @@ function CustomerMemberships() {
     async function loadMemberships() {
       try {
         const response = await fetch(
-          'http://localhost:3000/api/my-memberships',
+          'http://localhost:5000/api/my-memberships',
           { credentials: 'include' }
         )
 

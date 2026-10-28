@@ -18,7 +18,7 @@ function Memberships() {
   async function loadMemberships() {
       try {
         const response = await fetch(
-          'http://localhost:3000/api/memberships',
+          'http://localhost:5000/api/memberships',
           { credentials: 'include' }
         )
         console.log('Visitors response status:', response.status)
@@ -41,7 +41,7 @@ function Memberships() {
     async function loadVisitors() {
   try {
     const response = await fetch(
-      'http://localhost:3000/api/visitors',
+      'http://localhost:5000/api/visitors',
       { credentials: 'include' }
     )
 
@@ -68,7 +68,7 @@ function Memberships() {
 
       try {
         const response = await fetch(
-          `http://localhost:3000/api/memberships/${membershipID}`,
+          `http://localhost:5000/api/memberships/${membershipID}`,
           {
             method: 'DELETE',
             credentials: 'include'
@@ -97,7 +97,7 @@ function Memberships() {
 
     try {
       const response = await fetch(
-        'http://localhost:3000/api/memberships',
+        'http://localhost:5000/api/memberships',
         {
           method: 'POST',
           credentials: 'include',

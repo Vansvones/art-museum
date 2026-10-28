@@ -12,8 +12,8 @@ export default function CustomerArtistArtworks() {
 
   useEffect(() => {
     Promise.all([
-      fetch('http://localhost:3000/api/artworks'),
-      fetch('http://localhost:3000/api/artists')
+      fetch('http://localhost:5000/api/artworks'),
+      fetch('http://localhost:5000/api/artists')
     ])
       .then(async ([artworksResponse, artistsResponse]) => {
         if (!artworksResponse.ok || !artistsResponse.ok) {

@@ -22,7 +22,7 @@ function CustomerTickets() {
     async function loadExhibitions() {
       try {
         const response = await fetch(
-          'http://localhost:3000/api/exhibitions'
+          '/api/exhibitions'
         )
 
         if (!response.ok) {

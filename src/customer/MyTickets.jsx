@@ -10,7 +10,7 @@ export default function MyTickets() {
     async function loadTickets() {
       try {
         const response = await fetch(
-          'http://localhost:3000/api/my-tickets',
+          '/api/my-tickets',
           { credentials: 'include' }
         )
 
@@ -40,7 +40,7 @@ export default function MyTickets() {
 
     try {
         const response = await fetch(
-        `http://localhost:3000/api/my-tickets/${ticketID}/cancel`,
+        `/api/my-tickets/${ticketID}/cancel`,
         {
             method: 'PUT',
             credentials: 'include'

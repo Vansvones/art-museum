@@ -32,7 +32,7 @@ function Visitors() {
 	async function loadVisitors() {
 		try {
 			const response = await fetch(
-				'http://localhost:3000/api/visitors',
+				'/api/visitors',
 				{
 					credentials: 'include'
 				}
@@ -89,7 +89,7 @@ function Visitors() {
 
 			if (editingId !== null) {
 				response = await fetch(
-					`http://localhost:3000/api/visitors/${editingId}`,
+					`/api/visitors/${editingId}`,
 					{
 						method: 'PUT',
 						credentials: 'include',
@@ -101,7 +101,7 @@ function Visitors() {
 				)
 			} else {
 				response = await fetch(
-					'http://localhost:3000/api/visitors',
+					'/api/visitors',
 					{
 						method: 'POST',
 						credentials: 'include',
@@ -158,7 +158,7 @@ function Visitors() {
 
 		try {
 			const response = await fetch(
-				`http://localhost:3000/api/visitors/${id}`,
+				`/api/visitors/${id}`,
 				{
 					method: 'DELETE',
 					credentials: 'include'

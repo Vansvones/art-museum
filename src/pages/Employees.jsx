@@ -52,7 +52,7 @@ function Employees() {
 	// Load employees from the database
 	async function loadEmployees() {
 		try {
-			const response = await fetch('http://localhost:3000/api/employees')
+			const response = await fetch('/api/employees')
 
 			if (!response.ok) {
 				throw new Error('Failed to load employees')
@@ -116,7 +116,7 @@ function Employees() {
 
 			if (editingId !== null) {
 				response = await fetch(
-					`http://localhost:3000/api/employees/${editingId}`,
+					`/api/employees/${editingId}`,
 					{
 						method: 'PUT',
 						credentials: 'include',
@@ -129,7 +129,7 @@ function Employees() {
 					? Math.max(...employees.map(item => Number(item.EmployeeID))) + 1
 					: 1
 
-				response = await fetch('http://localhost:3000/api/employees', {
+				response = await fetch('/api/employees', {
 					method: 'POST',
 					credentials: 'include',
 					headers: { 'Content-Type': 'application/json' },
@@ -189,7 +189,7 @@ function Employees() {
 
 		try {
 			const response = await fetch(
-				`http://localhost:3000/api/employees/${id}`,
+				`/api/employees/${id}`,
 				{
 					method: 'DELETE',
 					credentials: 'include'

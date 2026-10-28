@@ -10,7 +10,7 @@ function CustomerParking() {
     async function loadParkingLots() {
       try {
         const response = await fetch(
-          'http://localhost:3000/api/parking-lots'
+          '/api/parking-lots'
         )
 
         if (!response.ok) {

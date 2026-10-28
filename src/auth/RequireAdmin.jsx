@@ -6,7 +6,7 @@ function RequireAdmin({ children }) {
   const [status, setStatus] = useState('checking');
 
   useEffect(() => {
-    fetch('http://localhost:3000/api/auth/admin/me', {
+    fetch('/api/auth/admin/me', {
       credentials: 'include'
     })
       .then((response) => {

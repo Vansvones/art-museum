@@ -3,8 +3,11 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "main": "./src/App.jsx",
   "scripts": {
-    "dev": "vite",
+    "server": "node --env-file=.env ./untitled\\ folder/server/index.js",
+    "client": "vite",
+    "dev": "npm run server & npm run client",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview"

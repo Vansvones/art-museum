@@ -3,12 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 function DataReport() {
     const emptyForm = {
         ReportType: '',
-        Subtype: '',
-        Price: '',
-        Type: 'General Admission',
-        VisitorID: '',
-        ExhibitionID: '',
-        GeneralAdmissionTicketID: ''
+        Subtype: ''
     };
 
 
@@ -18,6 +13,7 @@ function DataReport() {
 
     // setReports(["Exhibition", "Stores"]);
     const reports = ["Information", "Sold", "Profit"];
+    const subtypes = ["Exhibitions", "Memberships", "Stores", "Employees", "Tickets", "ExhibitionTickets", "StoreItems", "Parking"]
 
     function handleChange(event) {
         const { name, value } = event.target;
@@ -31,6 +27,17 @@ function DataReport() {
     async function getReport(event) {
         event.preventDefault();
         setError('');
+
+        if (!(reports.find((report) => report == form.ReportType)) || !(subtypes.find((subtype) => subtype == form.Subtype))) {
+            setError('Invalid report type or subtype.');
+            return;
+        }
+        const res = await fetch(`/api/report/${form.type}/${form.Subtype}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ ...ticket, TicketID: nextId })
+        })
     }
 
     return (
@@ -39,7 +46,7 @@ function DataReport() {
 
             {error && <p className="error-message">{error}</p>}
 
-            <form className="ticket-form">
+            <form className="ticket-form" onSubmit={getReport}>
                 <div className="ticket-form-grid">
                     <div className="ticket-field">
                         <label>Report Type</label>
@@ -69,7 +76,7 @@ function DataReport() {
                     )}
                     {form.ReportType === 'Sold' && (
                         <>
-                            <label>Type of Information</label>
+                            <label>Type of Product</label>
                             <select name="Subtype" value={form.Subtype} onChange={handleChange} required>
                                 <option value="">Select an attribute</option>
                                 <option value="Tickets">Tickets</option>
@@ -80,7 +87,7 @@ function DataReport() {
                     )}
                     {form.ReportType === 'Profit' && (
                         <>
-                            <label>Type of Information</label>
+                            <label>Type of Sales</label>
                             <select name="Subtype" value={form.Subtype} onChange={handleChange} required>
                                 <option value="">Select an attribute</option>
                                 <option value="Parking">Parking Passes</option>

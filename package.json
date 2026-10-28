@@ -5,10 +5,10 @@
   "type": "module",
   "main": "./src/App.jsx",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "untitled\\ folder/server/index.js" }
+    { "source": "/api/(.*)", "destination": "server/index.js" }
   ],
   "scripts": {
-    "server": "node --env-file=.env ./untitled\\ folder/server/index.js",
+    "server": "node --env-file=.env server/index.js",
     "client": "vite",
     "dev": "npm run server & npm run client",
     "build": "vite build",

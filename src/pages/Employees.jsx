@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react'
 
 function formatSalary(salary) {
@@ -26,6 +25,7 @@ function formatPhone(phone) {
 
 function Employees() {
 	const [employees, setEmployees] = useState([])
+	const [employeeOptions, setEmployeeOptions] = useState([])
 	const [search, setSearch] = useState('')
 	const [editingId, setEditingId] = useState(null)
 	const [error, setError] = useState('')
@@ -51,19 +51,33 @@ function Employees() {
 
 	// Load employees from the database
 	async function loadEmployees() {
-		try {
-			const response = await fetch('/api/employees')
+			try {
+					const response = await fetch('/api/employees', {
+							credentials: 'include'
+					})
 
-			if (!response.ok) {
-				throw new Error('Failed to load employees')
+					if (!response.ok) {
+							throw new Error('Failed to load employees')
+					}
+
+					const data = await response.json()
+					setEmployees(data)
+
+					const optionsResponse = await fetch('/api/employee-options', {
+							credentials: 'include'
+					})
+
+					if (!optionsResponse.ok) {
+							throw new Error('Failed to load supervisor options')
+					}
+
+					const optionsData = await optionsResponse.json()
+					setEmployeeOptions(optionsData)
+
+					setError('')
+			} catch (error) {
+					setError(error.message)
 			}
-
-			const data = await response.json()
-			setEmployees(data)
-			setError('')
-		} catch (error) {
-			setError(error.message)
-		}
 	}
 
 	useEffect(() => {
@@ -154,29 +168,44 @@ function Employees() {
 	}
 
 	// Load an employee into the form for editing
-	function startEditing(employee) {
-		setEditingId(employee.EmployeeID)
+	async function startEditing(employee) {
+		try {
+			const response = await fetch(
+				`/api/employees/${employee.EmployeeID}/sensitive`,
+				{ credentials: 'include' }
+			)
 
-		setForm({
-			FirstName: employee.FirstName || '',
-			MiddleName: employee.MiddleName || '',
-			LastName: employee.LastName || '',
-			SSN: employee.SSN || '',
-			Street: employee.Street || '',
-			City: employee.City || '',
-			State: employee.State || '',
-			ZIPCode: employee.ZIPCode || '',
-			Phone: employee.Phone || '',
-			Email: employee.Email || '',
-			Salary: employee.Salary ?? '',
-			Sex: employee.Sex || '',
-			BirthDate: employee.BirthDate
-				? String(employee.BirthDate).slice(0, 10)
-				: '',
-			SupervisorID: employee.SupervisorID ?? ''
-		})
+			const data = await response.json()
 
-		window.scrollTo({ top: 0, behavior: 'smooth' })
+			if (!response.ok) {
+				throw new Error(data.error || 'Failed to load employee details')
+			}
+
+			setEditingId(employee.EmployeeID)
+
+			setForm({
+				FirstName: employee.FirstName || '',
+				MiddleName: employee.MiddleName || '',
+				LastName: employee.LastName || '',
+				SSN: data.SSN || '',
+				Street: data.Street || '',
+				City: data.City || '',
+				State: data.State || '',
+				ZIPCode: data.ZIPCode || '',
+				Phone: employee.Phone || '',
+				Email: employee.Email || '',
+				Salary: employee.Salary ?? '',
+				Sex: employee.Sex || '',
+				BirthDate: employee.BirthDate
+					? String(employee.BirthDate).slice(0, 10)
+					: '',
+				SupervisorID: employee.SupervisorID ?? ''
+			})
+
+			window.scrollTo({ top: 0, behavior: 'smooth' })
+		} catch (error) {
+			setError(error.message)
+		}
 	}
 
 	// Delete an employee
@@ -369,16 +398,26 @@ function Employees() {
 					</div>
 
 					<div className="employee-field">
-						<label>Supervisor Employee ID</label>
-						<input
-							type="number"
-							name="SupervisorID"
-							value={form.SupervisorID}
-							onChange={handleChange}
-							min="1"
-							placeholder="Leave blank if none"
-						/>
-					</div>
+						<label>Supervisor</label>
+						<select
+								name="SupervisorID"
+								value={form.SupervisorID}
+								onChange={handleChange}
+						>
+								<option value="">No supervisor</option>
+
+								{employeeOptions
+										.filter(employee => employee.EmployeeID !== editingId)
+										.map(employee => (
+												<option
+														key={employee.EmployeeID}
+														value={employee.EmployeeID}
+												>
+														{employee.FirstName} {employee.LastName} (ID: {employee.EmployeeID})
+												</option>
+										))}
+						</select>
+				</div>
 				</div>
 
 				<div className="employee-form-actions">
@@ -425,7 +464,12 @@ function Employees() {
 								<p><strong>Phone:</strong> {formatPhone(employee.Phone)}</p>
 								<p><strong>City:</strong> {employee.City || 'Not specified'}</p>
 								<p><strong>Salary:</strong> {formatSalary(employee.Salary)}</p>
-								<p><strong>Supervisor ID:</strong> {employee.SupervisorID ?? 'None'}</p>
+								<p>
+										<strong>Supervisor:</strong>{' '}
+										{employee.SupervisorID !== null
+												? `${employee.SupervisorName || 'Unknown'} (ID: ${employee.SupervisorID})`
+												: 'None'}
+								</p>
 
 								<div className="employee-card-actions">
 									<button

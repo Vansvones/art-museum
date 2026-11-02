@@ -8,6 +8,8 @@ function Exhibitions() {
   const [selectedExhibition, setSelectedExhibition] = useState(null)
   const [exhibitionArtworks, setExhibitionArtworks] = useState([])
   const [allArtworks, setAllArtworks] = useState([])
+  const [galleries, setGalleries] = useState([])
+  const [managers, setManagers] = useState([])
   const [selectedArtworkID, setSelectedArtworkID] = useState('')
   const artworksPanelRef = useRef(null)
 
@@ -40,7 +42,39 @@ function Exhibitions() {
 
   useEffect(() => {
     loadExhibitions()
+    loadGalleries()
+    loadManagers()
   }, [])
+
+  async function loadGalleries() {
+    try {
+      const response = await fetch('/api/galleries')
+
+      if (!response.ok) {
+        throw new Error('Failed to load galleries')
+      }
+
+      const data = await response.json()
+      setGalleries(data)
+    } catch (error) {
+      setError(error.message)
+    }
+  }
+
+  async function loadManagers() {
+    try {
+      const response = await fetch('/api/employees')
+
+      if (!response.ok) {
+        throw new Error('Failed to load employees')
+      }
+
+      const data = await response.json()
+      setManagers(data)
+    } catch (error) {
+      setError(error.message)
+    }
+  }
 
   // Update form fields
   function handleChange(event) {
@@ -71,6 +105,18 @@ function Exhibitions() {
   async function saveExhibition(event) {
     event.preventDefault()
     setError('')
+    if (
+      form.StartDate &&
+      form.EndDate &&
+      form.EndDate < form.StartDate
+    ) {
+      setError('End date cannot be earlier than start date.')
+      return
+    }
+    if (!form.GalleryID || !form.ManagerID) {
+      setError('Please select both a gallery and a manager.')
+      return
+    }
 
     const exhibition = {
     ...form,
@@ -334,25 +380,39 @@ async function removeArtworkFromExhibition(artworkID) {
         </div>
 
         <div className="exhibition-field">
-        <label>Gallery ID</label>
-        <input
-            type="number"
+          <label>Gallery</label>
+          <select
             name="GalleryID"
             value={form.GalleryID}
             onChange={handleChange}
-            min="1"
-        />
+            required
+          >
+            <option value="">Select a gallery</option>
+
+            {galleries.map(gallery => (
+              <option key={gallery.GalleryID} value={gallery.GalleryID}>
+                {gallery.Name} (ID: {gallery.GalleryID})
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="exhibition-field">
-        <label>Manager Employee ID</label>
-        <input
-            type="number"
+          <label>Manager</label>
+          <select
             name="ManagerID"
             value={form.ManagerID}
             onChange={handleChange}
-            min="1"
-        />
+            required
+          >
+            <option value="">Select a manager</option>
+
+            {managers.map(manager => (
+              <option key={manager.EmployeeID} value={manager.EmployeeID}>
+                {manager.FirstName} {manager.LastName} (ID: {manager.EmployeeID})
+              </option>
+            ))}
+          </select>
         </div>
         </div>
 
@@ -395,8 +455,25 @@ async function removeArtworkFromExhibition(artworkID) {
               <p><strong>Type:</strong> {exhibition.ExhibitionType}</p>
               <p><strong>Start Date:</strong> {exhibition.StartDate ? String(exhibition.StartDate).slice(0, 10) : 'Not set'}</p>
               <p><strong>End Date:</strong> {exhibition.EndDate ? String(exhibition.EndDate).slice(0, 10) : 'Not set'}</p>
-              <p><strong>Gallery ID:</strong> {exhibition.GalleryID ?? 'Not assigned'}</p>
-              <p><strong>Manager ID:</strong> {exhibition.ManagerID ?? 'Not assigned'}</p>
+              <p>
+                <strong>Gallery:</strong>{' '}
+                {galleries.find(gallery =>
+                  Number(gallery.GalleryID) === Number(exhibition.GalleryID)
+                )?.Name || 'Not assigned'}
+              </p>
+
+              <p>
+                <strong>Manager:</strong>{' '}
+                {managers.find(manager =>
+                  Number(manager.EmployeeID) === Number(exhibition.ManagerID)
+                )?.FirstName
+                  ? `${managers.find(manager =>
+                      Number(manager.EmployeeID) === Number(exhibition.ManagerID)
+                    ).FirstName} ${managers.find(manager =>
+                      Number(manager.EmployeeID) === Number(exhibition.ManagerID)
+                    ).LastName}`
+                  : 'Not assigned'}
+              </p>
 
             <div className="exhibition-card-actions">
                 <button onClick={event => {

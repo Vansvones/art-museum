@@ -1,4 +1,4 @@
-import {BrowserRouter, Routes, Route, Link, useNavigate} from 'react-router-dom'
+import {BrowserRouter, Routes, Route, Link, NavLink, useNavigate} from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import Artists from './pages/Artists'
 import Artworks from './pages/Artworks'
@@ -129,7 +129,7 @@ function Home({user, authChecked}) {
 }
 
 
-function VisitorLayout( {onLogout, user} ) {
+function VisitorLayout( {onLogout, user, authChecked} ) {
   async function handleLogout() {
     try {
       await fetch('/api/auth/logout', {
@@ -145,24 +145,25 @@ function VisitorLayout( {onLogout, user} ) {
   return (
     <>
       <nav className="visitor-nav">
-        <Link to="/customer">Visitor Home</Link>
-        <Link to="/customer/artworks">Artworks</Link>
-        <Link to="/customer/artists">Artists</Link>
-        <Link to="/customer/galleries">Galleries</Link>
-        <Link to="/customer/exhibitions">Exhibitions</Link>
-        <Link to="/customer/my-tickets">My Tickets</Link>
-        <Link to="/customer/tickets">Buy Tickets</Link>
-        <Link to="/customer/stores">Museum Stores</Link>
-        <Link to="/customer/memberships">Memberships</Link>
-        <Link to="/customer/parking">Parking</Link>
-        <Link to="/">Main Home</Link>
-        <Link to="/customer/account">My Account</Link>
-        {user && (
-          <button type="button" onClick={handleLogout}>
-            Log Out
-          </button>
-        )}
-      </nav>
+      <NavLink to="/customer" end>Home</NavLink>
+      <NavLink to="/customer/artworks">Artworks</NavLink>
+      <NavLink to="/customer/artists">Artists</NavLink>
+      <NavLink to="/customer/galleries">Galleries</NavLink>
+      <NavLink to="/customer/exhibitions">Exhibitions</NavLink>
+      <NavLink to="/customer/my-tickets">My Tickets</NavLink>
+      <NavLink to="/customer/tickets">Buy Tickets</NavLink>
+      <NavLink to="/customer/stores">Museum Stores</NavLink>
+      <NavLink to="/customer/memberships">Memberships</NavLink>
+      <NavLink to="/customer/parking">Parking</NavLink>
+      <NavLink to="/">Main Home</NavLink>
+      <NavLink to="/customer/account">My Account</NavLink>
+
+      {user && (
+        <button type="button" onClick={handleLogout}>
+          Log Out
+        </button>
+      )}
+    </nav>
 
       <Routes>
         <Route path="/" element={<CustomerHome />} />
@@ -171,7 +172,10 @@ function VisitorLayout( {onLogout, user} ) {
         <Route path="/artists/:artistId" element={<CustomerArtistArtworks />} />
         <Route path="/galleries" element={<CustomerGalleries />} />
         <Route path="/exhibitions" element={<CustomerExhibitions />} />
-        <Route path="/tickets" element={<CustomerTickets />} />
+        <Route
+          path="/tickets"
+          element={<CustomerTickets user={user} authChecked={authChecked} />}
+        />
         <Route path="/my-tickets" element={<MyTickets />} />
         <Route path="/checkout" element={<CustomerCheckout />} />
         <Route path="/stores" element={<CustomerStores />} />
@@ -187,7 +191,7 @@ function VisitorLayout( {onLogout, user} ) {
 }
 
 
-function AdminLayout({user}) {
+function AdminLayout({user, onLogout}) {
   const navigate = useNavigate()
   async function handleLogout() {
     try {
@@ -198,6 +202,7 @@ function AdminLayout({user}) {
     } catch (error) {
       console.error('Logout request failed:', error)
     } finally {
+      onLogout()
       navigate('/login', { replace: true })
     }
   }
@@ -205,22 +210,23 @@ function AdminLayout({user}) {
   return (
     <>
       <nav className="admin-nav">
-        <Link to="/admin">Dashboard</Link>
-        <Link to="/admin/artworks">Manage Artworks</Link>
-        <Link to="/admin/artists">Manage Artists</Link>
-        <Link to="/admin/galleries">Manage Galleries</Link>
-        <Link to="/admin/stores">Manage Stores</Link>
-        <Link to="/admin/exhibitions">Manage Exhibitions</Link>
-        <Link to="/admin/employees">Manage Employees</Link>
-        <Link to="/admin/visitors">Manage Visitors</Link>
-        <Link to="/admin/tickets">Manage Tickets</Link>
-        <Link to="/admin/memberships">Manage Memberships</Link>
-        {user && (
-          <button type="button" onClick={handleLogout}>
-            Log Out
-          </button>
-        )}
-      </nav>
+      <NavLink to="/admin" end>Dashboard</NavLink>
+      <NavLink to="/admin/artworks">Manage Artworks</NavLink>
+      <NavLink to="/admin/artists">Manage Artists</NavLink>
+      <NavLink to="/admin/galleries">Manage Galleries</NavLink>
+      <NavLink to="/admin/stores">Manage Stores</NavLink>
+      <NavLink to="/admin/exhibitions">Manage Exhibitions</NavLink>
+      <NavLink to="/admin/employees">Manage Employees</NavLink>
+      <NavLink to="/admin/visitors">Manage Visitors</NavLink>
+      <NavLink to="/admin/tickets">Manage Tickets</NavLink>
+      <NavLink to="/admin/memberships">Manage Memberships</NavLink>
+
+      {user && (
+        <button type="button" onClick={handleLogout}>
+          Log Out
+        </button>
+      )}
+    </nav>
 
       <Routes>
         <Route path="/" element={<AdminDashboard />} />
@@ -296,6 +302,7 @@ function App() {
             element={
               <VisitorLayout
                 user={user}
+                authChecked={authChecked}
                 onLogout={() => {
                   setUser(null)
                   window.location.href = '/'
@@ -309,7 +316,9 @@ function App() {
             path="/admin/*"
             element={
               <RequireAdmin>
-                <AdminLayout user={user} />
+                <AdminLayout user={user}
+                onLogout={() => setUser(null)} 
+                />
               </RequireAdmin>
             }
           />

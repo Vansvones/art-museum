@@ -1379,7 +1379,205 @@ footer {
 	}
 }
 
+.ticket-purchase-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 500px;
+  margin: 30px auto;
+}
 
+.ticket-purchase-form label {
+  display: block;
+  margin: 8px 0 0;
+}
+
+.ticket-purchase-form input,
+.ticket-purchase-form select {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  border: 1px solid #dfd1c5;
+  border-radius: 5px;
+  background: #fff;
+  color: #332820;
+  font: inherit;
+}
+
+.ticket-purchase-form button {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 5px;
+  background-color: #75452f;
+  color: #fffdf9;
+  font-family: Georgia, serif;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.ticket-purchase-form button:hover {
+  background-color: #5b3828;
+  transform: translateY(-1px);
+}
+
+.ticket-purchase-form button:active {
+  transform: translateY(0);
+}
+
+.customer-content {
+  text-align: center;
+}
+
+.customer-content .ticket-purchase-form {
+  text-align: left;
+}
+
+
+/* Checkout layout */
+.checkout-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  max-width: 900px;
+  margin: 30px auto;
+  text-align: left;
+}
+
+/* Order summary card */
+.checkout-summary,
+.checkout-payment-card {
+  padding: 28px;
+  background: #fffdf9;
+  border: 1px solid #dfd1c5;
+  border-radius: 8px;
+  box-shadow: 0 3px 10px rgba(63, 48, 40, 0.08);
+}
+
+.checkout-summary h3,
+.checkout-payment-card h3 {
+  margin: 0 0 24px;
+  color: #75452f;
+  font-family: Georgia, serif;
+  font-size: 22px;
+  text-align: center;
+}
+
+.checkout-detail {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 0;
+  border-bottom: 1px solid #eee5d8;
+  font-size: 15px;
+}
+
+.checkout-detail span {
+  color: #77695f;
+}
+
+.checkout-detail strong {
+  color: #3f3028;
+  text-align: right;
+}
+
+/* Total */
+.checkout-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding: 18px;
+  background: #eee5d8;
+  border-radius: 5px;
+  color: #75452f;
+  font-size: 18px;
+}
+
+.checkout-total strong {
+  font-size: 23px;
+}
+
+/* Payment card */
+.checkout-payment-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.checkout-payment-card > p {
+  margin: 0;
+  color: #77695f;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.checkout-confirmation {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  color: #3f3028;
+  font-size: 14px;
+}
+
+.checkout-confirmation input {
+  width: 17px;
+  height: 17px;
+  accent-color: #75452f;
+}
+
+.checkout-payment-card button {
+  width: 100%;
+  margin-top: auto;
+  padding: 14px;
+  border: none;
+  border-radius: 5px;
+  background: #75452f;
+  color: #fffdf9;
+  font-family: Georgia, serif;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.checkout-payment-card button:hover {
+  background: #5b3828;
+}
+
+.checkout-payment-card button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.checkout-back {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.checkout-back a {
+  color: #75452f;
+  text-decoration: none;
+}
+
+.checkout-back a:hover {
+  text-decoration: underline;
+}
+
+/* Mobile layout */
+@media (max-width: 700px) {
+  .checkout-layout {
+    grid-template-columns: 1fr;
+    margin: 20px auto;
+  }
+}
 
 /* EXHIBITIONS PAGE */
 
@@ -1470,7 +1668,8 @@ footer {
 }
 
 .exhibition-field input,
-.exhibition-field textarea {
+.exhibition-field textarea,
+.exhibition-field select {
 	display: block;
 	width: 100%;
 	min-width: 0;
@@ -1484,7 +1683,8 @@ footer {
 	font-size: 14px;
 }
 
-.exhibition-field input {
+.exhibition-field input,
+.exhibition-field select {
 	height: 43px;
 }
 
@@ -1494,7 +1694,8 @@ footer {
 }
 
 .exhibition-field input:focus,
-.exhibition-field textarea:focus {
+.exhibition-field textarea:focus,
+.exhibition-field select:focus {
 	outline: 2px solid rgba(117, 69, 47, 0.18);
 	border-color: #75452f;
 }
@@ -3747,3 +3948,58 @@ footer {
   box-sizing: border-box;
 }
 
+
+.visitor-nav,
+.admin-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 10px 16px;
+  background: #eee5d8;
+  border-bottom: 1px solid #dfd1c5;
+}
+
+.visitor-nav a,
+.admin-nav a {
+  display: inline-block;
+  padding: 7px 10px;
+  border-radius: 4px;
+  color: #5b3828;
+  font-family: Georgia, serif;
+  font-size: 15px;
+  text-decoration: none;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.visitor-nav a:hover,
+.admin-nav a:hover,
+.visitor-nav a.active,
+.admin-nav a.active {
+  background: #75452f;
+  color: #fffdf9;
+}
+
+.visitor-nav a.active,
+.admin-nav a.active {
+  font-weight: bold;
+}
+
+.visitor-nav button,
+.admin-nav button {
+  padding: 7px 11px;
+  border: 1px solid #75452f;
+  border-radius: 4px;
+  background: transparent;
+  color: #5b3828;
+  font-family: Georgia, serif;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.visitor-nav button:hover,
+.admin-nav button:hover {
+  background: #75452f;
+  color: #fffdf9;
+}

@@ -116,62 +116,74 @@ function CustomerCheckout() {
           <h2>Checkout</h2>
         </section>
 
-        <h3>Order Summary</h3>
+        <div className="checkout-layout">
+          <div className="checkout-summary">
+            <h3>Order Summary</h3>
 
-        <p>
-          <strong>Ticket Type:</strong> {order.Type}
-        </p>
+            <div className="checkout-detail">
+              <span>Ticket Type</span>
+              <strong>{order.Type}</strong>
+            </div>
 
-        {order.Type === 'Single Exhibition' && (
-          <p>
-            <strong>Exhibition:</strong>{' '}
-            {selectedExhibition
-              ? selectedExhibition.Name
-              : `Exhibition #${order.ExhibitionID}`}
-          </p>
-        )}
+            {order.Type === 'Single Exhibition' && (
+              <div className="checkout-detail">
+                <span>Exhibition</span>
+                <strong>
+                  {selectedExhibition
+                    ? selectedExhibition.Name
+                    : `Exhibition #${order.ExhibitionID}`}
+                </strong>
+              </div>
+            )}
 
-        <p>
-          <strong>Visit Date:</strong> {order.VisitDate}
-        </p>
+            <div className="checkout-detail">
+              <span>Visit Date</span>
+              <strong>{order.VisitDate}</strong>
+            </div>
 
-        <p>
-          <strong>Quantity:</strong> {order.Quantity}
-        </p>
+            <div className="checkout-detail">
+              <span>Quantity</span>
+              <strong>{order.Quantity}</strong>
+            </div>
 
-        <h2>Total: ${total.toFixed(2)}</h2>
+            <div className="checkout-total">
+              <span>Total</span>
+              <strong>${total.toFixed(2)}</strong>
+            </div>
+          </div>
 
-        <form
-          className="ticket-purchase-form"
-          onSubmit={handleCheckout}
-        >
-            
-          <h3>Demo Payment</h3>
+          <form
+            className="checkout-payment-card"
+            onSubmit={handleCheckout}
+          >
+            <h3>Demo Payment</h3>
 
-          <p>
-            This is a class-project checkout simulation. No real payment
-            will be processed.
-          </p>
+            <p>
+              This is a class-project checkout simulation.
+              No real payment will be processed.
+            </p>
 
-          <label>
-            <input
-              type="checkbox"
-              checked={confirmed}
-              onChange={(event) => setConfirmed(event.target.checked)}
-            />
-            I confirm this demo purchase.
-          </label>
+            <label className="checkout-confirmation">
+              <input
+                type="checkbox"
+                checked={confirmed}
+                onChange={(event) => setConfirmed(event.target.checked)}
+              />
+              I confirm this demo purchase.
+            </label>
 
-          {error && <p className="error-message">{error}</p>}
+            {error && <p className="error-message">{error}</p>}
 
-          <button type="submit" disabled={loading}>
-            {loading ? 'Processing...' : `Confirm Purchase — $${total.toFixed(2)}`}
-          </button>
-        </form>
+            <button type="submit" disabled={loading}>
+              {loading ? 'Processing...' : `Confirm Purchase — $${total.toFixed(2)}`}
+            </button>
+          </form>
+        </div>
 
-        <p>
+        <p className="checkout-back">
           <Link to="/customer/tickets">Back to ticket selection</Link>
         </p>
+
       </section>
     </div>
   )

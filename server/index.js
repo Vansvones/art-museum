@@ -492,7 +492,7 @@ app.get('/api/db-health', async (req, res) => {
 });
 
 // Check the database and ARTWORK columns
-app.get('/api/check-artwork-columns', async (req, res) => {
+app.get('/api/check-artwork-columns', requireAuth, requireAdmin, async (req, res) => {
   try {
     const [database] = await db.query('SELECT DATABASE() AS name');
     const [columns] = await db.query('DESCRIBE ARTWORK');
@@ -1384,15 +1384,67 @@ app.delete('/api/visitors/:id', requireAuth, requireAdmin, async (req, res) => {
 
 
 // Get all employees
-app.get('/api/employees', async (req, res) => {
+app.get('/api/employees', requireAuth, requireAdmin, async (req, res) => {
   try {
     const [rows] = await db.query(
-      'SELECT * FROM EMPLOYEE ORDER BY EmployeeID'
+      `SELECT
+          e.EmployeeID,
+          e.FirstName,
+          e.MiddleName,
+          e.LastName,
+          e.Phone,
+          e.Email,
+          e.Salary,
+          e.Sex,
+          e.BirthDate,
+          e.SupervisorID,
+          CONCAT(s.FirstName, ' ', s.LastName) AS SupervisorName
+      FROM EMPLOYEE e
+      LEFT JOIN EMPLOYEE s
+          ON e.SupervisorID = s.EmployeeID
+      ORDER BY e.EmployeeID`
     )
     res.json(rows)
   } catch (error) {
     console.error('Error fetching employees:', error.message)
     res.status(500).json({ error: 'Failed to fetch employees' })
+  }
+})
+
+// Get employees for supervisor dropdown
+app.get('/api/employee-options', requireAuth, requireAdmin, async (req, res) => {
+  try{
+    const [rows] = await db.query(
+      `SELECT EmployeeID, FirstName, LastName
+       FROM EMPLOYEE
+       ORDER BY FirstName, LastName`
+    )
+
+    res.json(rows)
+  } catch (error) {
+    console.error('Error fetching employee options:', error.message)
+    res.status(500).json({ error: 'Failed to fetch employee options' })
+  }
+})
+
+// Get sensitive employee details (admin only)
+app.get('/api/employees/:id/sensitive', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT SSN, Street, City, State, ZIPCode
+       FROM EMPLOYEE
+       WHERE EmployeeID = ?`,
+      [req.params.id]
+    )
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Employee not found' })
+    }
+
+    res.json(rows[0])
+  } catch (error) {
+    console.error('Error fetching sensitive employee details:', error.message)
+    res.status(500).json({ error: 'Failed to fetch employee details' })
   }
 })
 
@@ -1525,7 +1577,7 @@ app.delete('/api/employees/:id', requireAuth, requireAdmin, async (req, res) => 
 ========================= */
 
 // Get tickets with visitor and exhibition names
-app.get('/api/tickets', async (req, res) => {
+app.get('/api/tickets', requireAuth, requireAdmin, async (req, res) => {
   try {
     const [rows] = await db.query(`
       SELECT
@@ -1621,7 +1673,7 @@ app.put('/api/my-tickets/:id/cancel', requireAuth, async (req, res) => {
 });
 
 // Get visitors for the ticket form
-app.get('/api/ticket-options/visitors', async (req, res) => {
+app.get('/api/ticket-options/visitors', requireAuth, requireAdmin, async (req, res) => {
   try {
     const [rows] = await db.query(`
       SELECT VisitorID, FirstName, LastName
@@ -2014,6 +2066,11 @@ app.delete('/api/stores/:id', requireAuth, requireAdmin, async (req, res) => {
 
 
 app.get('/api/my-memberships', requireAuth, async (req, res) => {
+  if (req.user.role !== 'VISITOR' || !req.user.VisitorID) {
+    return res.status(403).json({
+      error: 'A visitor account is required.'
+    });
+  }
   try {
     const [rows] = await db.query(
       `SELECT MembershipID, MembershipType, StartDate, EndDate, Price
@@ -2532,7 +2589,7 @@ app.get('/api/items', async (req, res) => {
 })
 
 
-app.post('/api/items', async (req, res) => {
+app.post('/api/items', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { Name, Price } = req.body
 
@@ -2568,7 +2625,7 @@ app.post('/api/items', async (req, res) => {
 })
 
 
-app.put('/api/items/:id', async (req, res) => {
+app.put('/api/items/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const itemID = Number(req.params.id)
     const { Name, Price } = req.body
@@ -2613,7 +2670,7 @@ app.put('/api/items/:id', async (req, res) => {
 })
 
 
-app.delete('/api/items/:id', async (req, res) => {
+app.delete('/api/items/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const itemID = Number(req.params.id)
 

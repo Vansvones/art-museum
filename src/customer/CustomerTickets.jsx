@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
-function CustomerTickets() {
+function CustomerTickets({ user, authChecked }) {
   const navigate = useNavigate()
 
   const [ticketType, setTicketType] = useState('General Admission')
@@ -162,9 +162,11 @@ function CustomerTickets() {
           <button type="submit">Continue to Purchase</button>
         </form>
 
-        <p>
-          Already have an account? <Link to="/login">Log in</Link> to continue.
-        </p>
+        {authChecked && !user && (
+          <p>
+            Already have an account? <Link to="/login">Log in</Link> to continue.
+          </p>
+        )}
       </section>
     </div>
   )

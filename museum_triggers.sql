@@ -94,4 +94,24 @@ BEGIN
     END IF;
 END$$
 
+
+CREATE TRIGGER trg_exhibition_daily_capacity
+BEFORE INSERT ON TICKET
+FOR EACH ROW
+BEGIN
+    DECLARE visitor_count INT;
+
+    SELECT COUNT(*)
+    INTO visitor_count
+    FROM TICKET
+    WHERE ExhibitionID = NEW.ExhibitionID
+      AND VisitDate = NEW.VisitDate;
+
+    IF visitor_count >= 50 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Maximum daily capacity of 50 visitors reached for this exhibition';
+    END IF;
+END$$
+
+
 DELIMITER ;

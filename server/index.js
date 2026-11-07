@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcrypt');
+const PDFDocument = require('pdfkit');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -2715,8 +2716,445 @@ app.delete('/api/items/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 })
 
-// Start the server
+// PDF Reports
+app.post('/api/report/:type/:subtype', requireAuth, requireAdmin, async (req, res) => {
+  const { type, subtype } = req.params;
 
+  const reports = {
+    Information: {
+      Exhibitions: {
+        title: 'Exhibitions',
+        sql: `
+          SELECT ExhibitionID, Name, Description, StartDate, EndDate,
+                 ExhibitionType, GalleryID, ManagerID
+          FROM EXHIBITION
+          ORDER BY StartDate
+        `
+      },
+      Memberships: {
+        title: 'Memberships',
+        sql: `
+          SELECT m.MembershipID, m.VisitorID,
+                 v.FirstName, v.LastName, m.MembershipType,
+                 m.StartDate, m.EndDate, m.Price
+          FROM MEMBERSHIP m
+          JOIN VISITOR v ON m.VisitorID = v.VisitorID
+          ORDER BY m.StartDate DESC
+        `
+      },
+      Stores: {
+        title: 'Stores',
+        sql: `
+          SELECT StoreID, Name, Type, Location
+          FROM STORE
+          ORDER BY Name
+        `
+      },
+      Employees: {
+        title: 'Employees',
+        sql: `
+          SELECT EmployeeID, FirstName, MiddleName, LastName,
+                 Street, City, State, ZIPCode, Phone, Email,
+                 Salary, Sex, BirthDate, SupervisorID
+          FROM EMPLOYEE
+          ORDER BY LastName, FirstName
+        `
+      }
+    },
+
+    Sold: {
+      Tickets: {
+        title: 'Ticket Sales',
+        sql: `
+          SELECT TicketID, Type, PurchaseDate, VisitDate,
+                 Price, VisitorID, ExhibitionID, Status
+          FROM TICKET
+          WHERE Status = 'Active'
+          ORDER BY PurchaseDate DESC
+        `
+      },
+      ExhibitionTickets: {
+        title: 'Exhibition Ticket Sales',
+        sql: `
+          SELECT e.ExhibitionID, e.Name,
+                 COUNT(t.TicketID) AS TicketsSold,
+                 COALESCE(SUM(t.Price), 0) AS TotalSales
+          FROM EXHIBITION e
+          LEFT JOIN TICKET t
+            ON e.ExhibitionID = t.ExhibitionID
+            AND t.Type = 'Single Exhibition'
+            AND t.Status = 'Active'
+          GROUP BY e.ExhibitionID, e.Name
+          ORDER BY e.Name
+        `
+      },
+      StoreItems: {
+        title: 'Items Sold',
+        sql: `
+          SELECT s.ItemSoldID, i.Name AS ItemName,
+                 st.Name AS StoreName, s.Quantity,
+                 s.SoldPrice,
+                 s.Quantity * s.SoldPrice AS TotalSales,
+                 s.SaleDate
+          FROM ITEM_SOLD s
+          JOIN ITEM i ON s.ItemID = i.ItemID
+          LEFT JOIN STORE st ON s.StoreID = st.StoreID
+          ORDER BY s.SaleDate DESC
+        `
+      }
+    },
+
+    Profit: {
+      Parking: {
+        title: 'Parking Revenue',
+        sql: `
+          SELECT pp.ParkingPassID, pl.Name AS ParkingLot,
+                 pp.VisitDate, pp.ArrivalTime, pp.DepartureTime,
+                 pl.HourlyRate,
+                 ROUND(
+                   TIMESTAMPDIFF(
+                     MINUTE, pp.ArrivalTime, pp.DepartureTime
+                   ) / 60 * pl.HourlyRate, 2
+                 ) AS Revenue
+          FROM PARKING_PASS pp
+          JOIN PARKING_LOT pl
+            ON pp.ParkingLotID = pl.ParkingLotID
+          WHERE pp.ArrivalTime IS NOT NULL
+            AND pp.DepartureTime IS NOT NULL
+            AND pp.DepartureTime >= pp.ArrivalTime
+          ORDER BY pp.VisitDate DESC
+        `
+      },
+      StoreItems: {
+        title: 'Store Revenue',
+        sql: `
+          SELECT st.StoreID, st.Name AS StoreName,
+                 COUNT(s.ItemSoldID) AS Transactions,
+                 COALESCE(SUM(s.Quantity), 0) AS ItemsSold,
+                 COALESCE(
+                   SUM(s.Quantity * s.SoldPrice), 0
+                 ) AS TotalRevenue
+          FROM STORE st
+          LEFT JOIN ITEM_SOLD s ON st.StoreID = s.StoreID
+          GROUP BY st.StoreID, st.Name
+          ORDER BY st.Name
+        `
+      }
+    }
+  };
+
+  const report = reports[type]?.[subtype];
+
+  if (!report) {
+    return res.status(400).json({ error: 'Invalid report type.' });
+  }
+
+  try {
+    const [rows] = await db.query(report.sql);
+    let ticketSummary = null;
+
+    if (type === 'Sold' && subtype === 'Tickets') {
+      const [summaryRows] = await db.query(`
+        SELECT
+          COUNT(*) AS TicketsSold,
+          COALESCE(SUM(Price), 0) AS TotalRevenue
+        FROM TICKET
+        WHERE Status = 'Active'
+      `);
+
+      ticketSummary = summaryRows[0];
+    }
+
+    let parkingSummary = null;
+
+    if (type === 'Profit' && subtype === 'Parking') {
+      parkingSummary = rows.reduce(
+        (total, row) => total + Number(row.Revenue || 0),
+        0
+      );
+    }
+
+    let exhibitionTicketSummary = null;
+
+    if (type === 'Sold' && subtype === 'ExhibitionTickets') {
+      exhibitionTicketSummary = rows.reduce(
+        (summary, row) => {
+          summary.TicketsSold += Number(row.TicketsSold || 0);
+          summary.TotalSales += Number(row.TotalSales || 0);
+          return summary;
+        },
+        { TicketsSold: 0, TotalSales: 0 }
+      );
+    }
+
+    let storeItemsSoldSummary = null;
+
+    if (type === 'Sold' && subtype === 'StoreItems') {
+      storeItemsSoldSummary = rows.reduce(
+        (summary, row) => {
+          summary.ItemsSold += Number(row.Quantity || 0);
+          summary.TotalSales += Number(row.TotalSales || 0);
+          return summary;
+        },
+        { ItemsSold: 0, TotalSales: 0 }
+      );
+    }
+
+    let storeRevenueSummary = null;
+
+    if (type === 'Profit' && subtype === 'StoreItems') {
+      storeRevenueSummary = rows.reduce(
+        (summary, row) => {
+          summary.Transactions += Number(row.Transactions || 0);
+          summary.ItemsSold += Number(row.ItemsSold || 0);
+          summary.TotalRevenue += Number(row.TotalRevenue || 0);
+          return summary;
+        },
+        { Transactions: 0, ItemsSold: 0, TotalRevenue: 0 }
+      );
+    }
+
+    const doc = new PDFDocument({
+      margin: 40,
+      size: 'A4',
+      layout: 'landscape'
+    });
+
+    const filename = `${type}_${subtype}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${filename}"`
+    );
+
+    doc.pipe(res);
+
+    const pageWidth = doc.page.width - 80;
+    const tableX = 40;
+    const bottomMargin = 40;
+
+    const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+
+    // Relative column widths for each report
+    const columnWeights = {
+      'Information-Exhibitions': [0.06, 0.17, 0.28, 0.10, 0.10, 0.13, 0.08, 0.08],
+      'Information-Memberships': [0.08, 0.08, 0.12, 0.12, 0.13, 0.12, 0.12, 0.23],
+      'Information-Stores': [0.12, 0.30, 0.20, 0.38],
+      'Information-Employees': [0.08, 0.12, 0.08, 0.12, 0.18, 0.10, 0.07, 0.08, 0.12, 0.12, 0.10, 0.05, 0.10, 0.08],
+      'Sold-Tickets': [0.08, 0.14, 0.12, 0.12, 0.08, 0.10, 0.12, 0.10],
+      'Sold-ExhibitionTickets': [0.15, 0.40, 0.20, 0.25],
+      'Sold-StoreItems': [0.08, 0.20, 0.16, 0.10, 0.12, 0.14, 0.20],
+      'Profit-Parking': [0.10, 0.22, 0.13, 0.13, 0.13, 0.12, 0.17],
+      'Profit-StoreItems': [0.12, 0.28, 0.18, 0.14, 0.28]
+    };
+
+    const weights = columnWeights[`${type}-${subtype}`] || columns.map(() => 1 / columns.length);
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+
+    const widths = weights.map(weight => pageWidth * weight / totalWeight);
+
+    let y;
+
+    function drawPageHeader() {
+      doc.font('Helvetica-Bold')
+        .fontSize(18)
+        .text(report.title, 40, 30, {
+          width: pageWidth,
+          align: 'center'
+        });
+
+      doc.font('Helvetica')
+        .fontSize(9)
+        .text(`Generated: ${new Date().toLocaleString()}`, 40, 58);
+
+      y = 85;
+
+      if (ticketSummary) {
+        doc.font('Helvetica-Bold')
+          .fontSize(10)
+          .fillColor('#3b3029')
+          .text(
+            `Tickets Sold: ${ticketSummary.TicketsSold}    Total Revenue: $${Number(ticketSummary.TotalRevenue).toFixed(2)}`,
+            tableX,
+            y
+          );
+
+        y += 25;
+      }
+
+      if (parkingSummary !== null) {
+        doc.font('Helvetica-Bold')
+          .fontSize(10)
+          .fillColor('#3b3029')
+          .text(
+            `Total Parking Revenue: $${parkingSummary.toFixed(2)}`,
+            tableX,
+            y
+          );
+
+        y += 25;
+      }
+
+      if (exhibitionTicketSummary !== null) {
+        doc.font('Helvetica-Bold')
+          .fontSize(10)
+          .fillColor('#3b3029')
+          .text(
+            `Total Tickets Sold: ${exhibitionTicketSummary.TicketsSold}    Total Sales: $${exhibitionTicketSummary.TotalSales.toFixed(2)}`,
+            tableX,
+            y
+          );
+
+        y += 25;
+      }
+
+      if (storeItemsSoldSummary !== null) {
+        doc.font('Helvetica-Bold')
+          .fontSize(10)
+          .fillColor('#3b3029')
+          .text(
+            `Total Items Sold: ${storeItemsSoldSummary.ItemsSold}    Total Sales: $${storeItemsSoldSummary.TotalSales.toFixed(2)}`,
+            tableX,
+            y
+          );
+
+        y += 25;
+      }
+
+      if (storeRevenueSummary !== null) {
+        doc.font('Helvetica-Bold')
+          .fontSize(10)
+          .fillColor('#3b3029')
+          .text(
+            `Total Transactions: ${storeRevenueSummary.Transactions}    Total Items Sold: ${storeRevenueSummary.ItemsSold}    Total Revenue: $${storeRevenueSummary.TotalRevenue.toFixed(2)}`,
+            tableX,
+            y
+          );
+
+        y += 25;
+      }
+
+      if (columns.length === 0) {
+        return;
+      }
+
+      doc.font('Helvetica-Bold').fontSize(8);
+
+      let x = tableX;
+      let headerHeight = 0;
+
+      columns.forEach((column, index) => {
+        const height = doc.heightOfString(column, {
+          width: widths[index] - 10
+        });
+
+        headerHeight = Math.max(headerHeight, height);
+      });
+
+      headerHeight += 12;
+
+      doc.rect(tableX, y, pageWidth, headerHeight)
+        .fill('#e8ded3');
+
+      columns.forEach((column, index) => {
+        doc.fillColor('#3b3029')
+          .text(column, x + 5, y + 6, {
+            width: widths[index] - 10,
+            height: headerHeight - 10
+          });
+
+        x += widths[index];
+      });
+
+      y += headerHeight;
+      doc.font('Helvetica').fontSize(8);
+    }
+
+    if (rows.length === 0) {
+      drawPageHeader();
+      doc.fontSize(11).text('No records found.', 40, y + 15);
+    } else {
+      drawPageHeader();
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const values = columns.map(column => {
+          const value = row[column];
+
+          if (value instanceof Date) {
+            return value.toISOString().split('T')[0];
+          }
+
+          return value === null || value === undefined
+            ? ''
+            : String(value);
+        });
+
+        // Calculate the height needed by this row
+        let rowHeight = 0;
+
+        values.forEach((value, index) => {
+          const height = doc.heightOfString(value, {
+            width: widths[index] - 10,
+            lineGap: 2
+          });
+
+          rowHeight = Math.max(rowHeight, height);
+        });
+
+        rowHeight += 12;
+
+        // Start a new page if the row does not fit
+        if (y + rowHeight > doc.page.height - bottomMargin) {
+          doc.addPage();
+          drawPageHeader();
+        }
+
+        // Alternate row backgrounds
+        if (i % 2 === 0) {
+          doc.rect(tableX, y, pageWidth, rowHeight)
+            .fill('#f7f3ef');
+        }
+
+        // Draw row text
+        let x = tableX;
+
+        values.forEach((value, index) => {
+          doc.fillColor('#333333')
+            .font('Helvetica')
+            .fontSize(8)
+            .text(value, x + 5, y + 6, {
+              width: widths[index] - 10,
+              lineGap: 2
+            });
+
+          x += widths[index];
+        });
+
+        // Draw a separator
+        doc.moveTo(tableX, y + rowHeight)
+          .lineTo(tableX + pageWidth, y + rowHeight)
+          .strokeColor('#dddddd')
+          .stroke();
+
+        y += rowHeight;
+      }
+    }
+
+    doc.end();
+  } catch (error) {
+    console.error('Report generation error:', error);
+
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to generate report.' });
+    } else {
+      res.destroy(error);
+    }
+  }
+});
+
+// Start the server
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {

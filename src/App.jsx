@@ -22,11 +22,13 @@ import Tickets from './pages/Tickets'
 import Memberships from './pages/Memberships'
 import AdminDashboard from './admin/AdminDashboard'
 import ClerkDashboard from './clerk/ClerkDashboard'
+import CuratorDashboard from './curator/CuratorDashboard'
 import Login from './auth/Login'
 import Register from './auth/Register'
 import ChangePassword from './auth/ChangePassword'
 import RequireAdmin from './auth/RequireAdmin';
 import RequireClerk from './auth/RequireClerk';
+import RequireCurator from './auth/RequireCurator'
 import Stores from './pages/Stores'
 import DataReport from './pages/DataReport'
 import Visitors from './pages/Visitors'
@@ -288,6 +290,50 @@ function ClerkLayout({ user, onLogout }) {
   )
 }
 
+function CuratorLayout({ user, onLogout }) {
+  const navigate = useNavigate()
+
+  async function handleLogout() {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      })
+    } catch (error) {
+      console.error('Logout request failed:', error)
+    } finally {
+      onLogout()
+      navigate('/login', { replace: true })
+    }
+  }
+
+  return (
+    <>
+      <nav className="admin-nav">
+        <NavLink to="/curator" end>Dashboard</NavLink>
+        <NavLink to="/curator/artworks">Manage Artworks</NavLink>
+        <NavLink to="/curator/artists">Manage Artists</NavLink>
+        <NavLink to="/curator/galleries">View Galleries</NavLink>
+        <NavLink to="/curator/exhibitions">Manage Exhibitions</NavLink>
+
+        {user && (
+          <button type="button" onClick={handleLogout}>
+            Log Out
+          </button>
+        )}
+      </nav>
+
+      <Routes>
+        <Route path="/" element={<CuratorDashboard />} />
+        <Route path="/artworks" element={<Artworks />} />
+        <Route path="/artists" element={<Artists />} />
+        <Route path="/galleries" element={<Galleries user={user} />} />
+        <Route path="/exhibitions" element={<Exhibitions />} />
+      </Routes>
+    </>
+  )
+}
+
 function App() {
   const [user, setUser] = useState(null)
   const [authChecked, setAuthChecked] = useState(false)
@@ -373,6 +419,17 @@ function App() {
                   onLogout={() => setUser(null)}
                 />
               </RequireClerk>
+            }
+          />
+          <Route
+            path="/curator/*"
+            element={
+              <RequireCurator>
+                <CuratorLayout
+                  user={user}
+                  onLogout={() => setUser(null)}
+                />
+              </RequireCurator>
             }
           />
         </Routes>

@@ -44,6 +44,14 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+function requireAdminOrClerk(req, res, next) {
+  if (!req.user || (req.user.role !== 'ADMIN' && req.user.role !== 'CLERK')) {
+    return res.status(403).json({ error: 'Admin or Clerk access required.' });
+  }
+
+  next();
+}
+
 const db = mysql.createPool({
   host: process.env.DB_HOST,
   port: Number(process.env.DB_PORT),
@@ -316,6 +324,23 @@ app.post('/api/auth/change-password', requireAuth, async (req, res) => {
 
 // Check admin session
 app.get('/api/auth/admin/me', requireAuth, requireAdmin, (req, res) => {
+  res.json({
+    user: {
+      id: req.user.userId,
+      email: req.user.email,
+      role: req.user.role
+    }
+  });
+});
+
+// Check clerk session
+app.get('/api/auth/clerk/me', requireAuth, (req, res) => {
+  if (req.user.role !== 'CLERK') {
+    return res.status(403).json({
+      error: 'Clerk access required.'
+    });
+  }
+
   res.json({
     user: {
       id: req.user.userId,
@@ -1578,7 +1603,7 @@ app.delete('/api/employees/:id', requireAuth, requireAdmin, async (req, res) => 
 ========================= */
 
 // Get tickets with visitor and exhibition names
-app.get('/api/tickets', requireAuth, requireAdmin, async (req, res) => {
+app.get('/api/tickets', requireAuth, requireAdminOrClerk, async (req, res) => {
   try {
     const [rows] = await db.query(`
       SELECT
@@ -1674,7 +1699,7 @@ app.put('/api/my-tickets/:id/cancel', requireAuth, async (req, res) => {
 });
 
 // Get visitors for the ticket form
-app.get('/api/ticket-options/visitors', requireAuth, requireAdmin, async (req, res) => {
+app.get('/api/ticket-options/visitors', requireAuth, requireAdminOrClerk, async (req, res) => {
   try {
     const [rows] = await db.query(`
       SELECT VisitorID, FirstName, LastName
@@ -1706,7 +1731,7 @@ app.get('/api/ticket-options/exhibitions', async (req, res) => {
 })
 
 // Add a ticket
-app.post('/api/tickets', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/tickets', requireAuth, requireAdminOrClerk, async (req, res) => {
   const {
     TicketID,
     PurchaseDate,
@@ -1877,7 +1902,7 @@ app.post('/api/tickets/purchase', requireAuth, async (req, res) => {
 
 
 // Update a ticket
-app.put('/api/tickets/:id', requireAuth, requireAdmin, async (req, res) => {
+app.put('/api/tickets/:id', requireAuth, requireAdminOrClerk, async (req, res) => {
   const {
     PurchaseDate,
     VisitDate,
@@ -1933,7 +1958,7 @@ app.put('/api/tickets/:id', requireAuth, requireAdmin, async (req, res) => {
 })
 
 // Delete a ticket
-app.delete('/api/tickets/:id', requireAuth, requireAdmin, async (req, res) => {
+app.delete('/api/tickets/:id', requireAuth, requireAdminOrClerk, async (req, res) => {
   try {
     const [result] = await db.query(
       'DELETE FROM TICKET WHERE TicketID = ?',
@@ -1968,7 +1993,7 @@ app.get('/api/stores', async (req, res) => {
 })
 
 // Add a store
-app.post('/api/stores', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/stores', requireAuth, requireAdminOrClerk, async (req, res) => {
   const { StoreID, Name, Type, Location } = req.body
 
   if (
@@ -2004,7 +2029,7 @@ app.post('/api/stores', requireAuth, requireAdmin, async (req, res) => {
 })
 
 // Update a store
-app.put('/api/stores/:id', requireAuth, requireAdmin, async (req, res) => {
+app.put('/api/stores/:id', requireAuth, requireAdminOrClerk, async (req, res) => {
   const { Name, Type, Location } = req.body
 
   if (!Name?.trim() || !Type?.trim()) {
@@ -2045,7 +2070,7 @@ app.put('/api/stores/:id', requireAuth, requireAdmin, async (req, res) => {
 })
 
 // Delete a store
-app.delete('/api/stores/:id', requireAuth, requireAdmin, async (req, res) => {
+app.delete('/api/stores/:id', requireAuth, requireAdminOrClerk, async (req, res) => {
   try {
     const [result] = await db.query(
       'DELETE FROM STORE WHERE StoreID = ?',
@@ -2377,7 +2402,7 @@ app.get('/api/stores/:id/items', async (req, res) => {
 
 
 
-app.post('/api/stores/:id/items', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/stores/:id/items', requireAuth, requireAdminOrClerk, async (req, res) => {
   const connection = await db.getConnection()
 
   try {
@@ -2459,7 +2484,7 @@ app.post('/api/stores/:id/items', requireAuth, requireAdmin, async (req, res) =>
 })
 
 
-app.put('/api/stores/:storeId/items/:itemId', requireAuth, requireAdmin, async (req, res) => {
+app.put('/api/stores/:storeId/items/:itemId', requireAuth, requireAdminOrClerk, async (req, res) => {
   try {
     const storeID = Number(req.params.storeId)
     const itemID = Number(req.params.itemId)
@@ -2506,7 +2531,7 @@ app.put('/api/stores/:storeId/items/:itemId', requireAuth, requireAdmin, async (
 })
 
 
-app.put('/api/items/:id/price', requireAuth, requireAdmin, async (req, res) => {
+app.put('/api/items/:id/price', requireAuth, requireAdminOrClerk, async (req, res) => {
   try {
     const itemID = Number(req.params.id)
     const price = Number(req.body.Price)
@@ -2548,7 +2573,7 @@ app.put('/api/items/:id/price', requireAuth, requireAdmin, async (req, res) => {
 })
 
 
-app.delete('/api/stores/:storeId/items/:itemId', requireAuth, requireAdmin, async (req, res) => {
+app.delete('/api/stores/:storeId/items/:itemId', requireAuth, requireAdminOrClerk, async (req, res) => {
   try {
     const storeID = Number(req.params.storeId)
     const itemID = Number(req.params.itemId)
@@ -2590,7 +2615,7 @@ app.get('/api/items', async (req, res) => {
 })
 
 
-app.post('/api/items', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/items', requireAuth, requireAdminOrClerk, async (req, res) => {
   try {
     const { Name, Price } = req.body
 
@@ -2626,7 +2651,7 @@ app.post('/api/items', requireAuth, requireAdmin, async (req, res) => {
 })
 
 
-app.put('/api/items/:id', requireAuth, requireAdmin, async (req, res) => {
+app.put('/api/items/:id', requireAuth, requireAdminOrClerk, async (req, res) => {
   try {
     const itemID = Number(req.params.id)
     const { Name, Price } = req.body
@@ -2671,7 +2696,7 @@ app.put('/api/items/:id', requireAuth, requireAdmin, async (req, res) => {
 })
 
 
-app.delete('/api/items/:id', requireAuth, requireAdmin, async (req, res) => {
+app.delete('/api/items/:id', requireAuth, requireAdminOrClerk, async (req, res) => {
   try {
     const itemID = Number(req.params.id)
 

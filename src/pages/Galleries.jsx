@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
-function Galleries() {
+function Galleries({ user }) {
+  const isCurator = user?.role === 'CURATOR'
 	const [galleries, setGalleries] = useState([])
 	const [search, setSearch] = useState('')
 	const [editingId, setEditingId] = useState(null)
@@ -359,53 +360,55 @@ function Galleries() {
 
 			{error && <p className="error-message">{error}</p>}
 
-			<form className="gallery-form" onSubmit={saveGallery} ref={galleryFormRef}>
-				<h3>{editingId !== null ? 'Edit Gallery' : 'Add Gallery'}</h3>
+			{!isCurator && (
+				<form className="gallery-form" onSubmit={saveGallery} ref={galleryFormRef}>
+					<h3>{editingId !== null ? 'Edit Gallery' : 'Add Gallery'}</h3>
 
-				<div className="gallery-form-grid">
-					<div className="gallery-field">
-						<label>Gallery Name</label>
-						<input
-							name="Name"
-							value={form.Name}
-							onChange={handleChange}
-							maxLength="50"
-							required
-						/>
+					<div className="gallery-form-grid">
+						<div className="gallery-field">
+							<label>Gallery Name</label>
+							<input
+								name="Name"
+								value={form.Name}
+								onChange={handleChange}
+								maxLength="50"
+								required
+							/>
+						</div>
+
+						<div className="gallery-field">
+							<label>Location</label>
+							<input
+								name="Location"
+								value={form.Location}
+								onChange={handleChange}
+								maxLength="100"
+							/>
+						</div>
+
+						<div className="gallery-field gallery-field-wide">
+							<label>Description</label>
+							<textarea
+								name="Description"
+								value={form.Description}
+								onChange={handleChange}
+								maxLength="250"
+								rows={4}
+							/>
+						</div>
 					</div>
 
-					<div className="gallery-field">
-						<label>Location</label>
-						<input
-							name="Location"
-							value={form.Location}
-							onChange={handleChange}
-							maxLength="100"
-						/>
-					</div>
-
-					<div className="gallery-field gallery-field-wide">
-						<label>Description</label>
-						<textarea
-							name="Description"
-							value={form.Description}
-							onChange={handleChange}
-							maxLength="250"
-							rows={4}
-						/>
-					</div>
-				</div>
-
-				<button type="submit">
-					{editingId !== null ? 'Save Changes' : 'Add Gallery'}
-				</button>
-
-				{editingId !== null && (
-					<button type="button" onClick={resetForm}>
-						Cancel
+					<button type="submit">
+						{editingId !== null ? 'Save Changes' : 'Add Gallery'}
 					</button>
-				)}
-			</form>
+
+					{editingId !== null && (
+						<button type="button" onClick={resetForm}>
+							Cancel
+						</button>
+					)}
+				</form>
+			)}
 
 			<div className="gallery-section">
 				<h3>Galleries</h3>
@@ -435,28 +438,30 @@ function Galleries() {
 								<p><strong>Location:</strong> {gallery.Location || 'Not specified'}</p>
 								<p><strong>Description:</strong> {gallery.Description || 'None'}</p>
 
-								<div className="gallery-card-actions">
-									<button
-										type="button"
-										onClick={event => {
-											event.stopPropagation()
-											startEditing(gallery)
-									}}
-									>
-										Edit
-									</button>
+								{!isCurator && (
+									<div className="gallery-card-actions">
+										<button
+											type="button"
+											onClick={event => {
+												event.stopPropagation()
+												startEditing(gallery)
+											}}
+										>
+											Edit
+										</button>
 
-									<button
-										type="button"
-										className="delete-button"
-										onClick={event => {
+										<button
+											type="button"
+											className="delete-button"
+											onClick={event => {
 												event.stopPropagation()
 												deleteGallery(gallery.GalleryID)
-										}}
-									>
-										Delete
-									</button>
-								</div>
+											}}
+										>
+											Delete
+										</button>
+									</div>
+								)}
 							</div>
 						))
 					)}

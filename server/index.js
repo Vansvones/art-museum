@@ -52,6 +52,14 @@ function requireAdminOrClerk(req, res, next) {
   next();
 }
 
+function requireAdminOrCurator(req, res, next) {
+  if (!req.user || (req.user.role !== 'ADMIN' && req.user.role !== 'CURATOR')) {
+    return res.status(403).json({ error: 'Admin or Curator access required.' });
+  }
+
+  next();
+}
+
 const db = mysql.createPool({
   host: process.env.DB_HOST,
   port: Number(process.env.DB_PORT),
@@ -350,6 +358,23 @@ app.get('/api/auth/clerk/me', requireAuth, (req, res) => {
   });
 });
 
+// Check curator session
+app.get('/api/auth/curator/me', requireAuth, (req, res) => {
+  if (req.user.role !== 'CURATOR') {
+    return res.status(403).json({
+      error: 'Curator access required.'
+    });
+  }
+
+  res.json({
+    user: {
+      id: req.user.userId,
+      email: req.user.email,
+      role: req.user.role
+    }
+  });
+});
+
 // Check the current session
 app.get('/api/auth/me', requireAuth, async (req, res) => {
   try {
@@ -545,7 +570,7 @@ app.get('/api/artists', async (req, res) => {
 });
 
 // Add a new artist
-app.post('/api/artists', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/artists', requireAuth, requireAdminOrCurator, async (req, res) => {
   const {
     ArtistID,
     FirstName,
@@ -586,7 +611,7 @@ app.post('/api/artists', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // Update an existing artist
-app.put('/api/artists/:id', requireAuth, requireAdmin, async (req, res) => {
+app.put('/api/artists/:id', requireAuth, requireAdminOrCurator, async (req, res) => {
   const {
     FirstName,
     MiddleName,
@@ -631,7 +656,7 @@ app.put('/api/artists/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // Delete an artist
-app.delete('/api/artists/:id', requireAuth, requireAdmin, async (req, res) => {
+app.delete('/api/artists/:id', requireAuth, requireAdminOrCurator, async (req, res) => {
   try {
     const [result] = await db.query(
       'DELETE FROM ARTIST WHERE ArtistID = ?',
@@ -739,7 +764,7 @@ app.get('/api/exhibitions/:id/artworks', async (req, res) => {
 app.post(
   '/api/exhibitions/:id/artworks',
   requireAuth,
-  requireAdmin,
+  requireAdminOrCurator,
   async (req, res) => {
     const exhibitionID = Number(req.params.id);
     const artworkID = Number(req.body.ArtworkID);
@@ -800,7 +825,7 @@ app.post(
 app.delete(
   '/api/exhibitions/:id/artworks/:artworkId',
   requireAuth,
-  requireAdmin,
+  requireAdminOrCurator,
   async (req, res) => {
     const exhibitionID = Number(req.params.id);
     const artworkID = Number(req.params.artworkId);
@@ -840,7 +865,7 @@ app.delete(
 );
 
 // Add a new exhibition
-app.post('/api/exhibitions', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/exhibitions', requireAuth, requireAdminOrCurator, async (req, res) => {
   const {
     ExhibitionID,
     Name,
@@ -888,7 +913,7 @@ app.post('/api/exhibitions', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // Update an exhibition
-app.put('/api/exhibitions/:id', requireAuth, requireAdmin, async (req, res) => {
+app.put('/api/exhibitions/:id', requireAuth, requireAdminOrCurator, async (req, res) => {
   const {
     Name,
     Description,
@@ -935,7 +960,7 @@ app.put('/api/exhibitions/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // Delete an exhibition
-app.delete('/api/exhibitions/:id', requireAuth, requireAdmin, async (req, res) => {
+app.delete('/api/exhibitions/:id', requireAuth, requireAdminOrCurator, async (req, res) => {
   try {
     const [result] = await db.query(
       'DELETE FROM EXHIBITION WHERE ExhibitionID = ?',
@@ -1047,7 +1072,7 @@ app.delete('/api/galleries/:id', requireAuth, requireAdmin, async (req, res) => 
 })
 
 // Add a new artwork
-app.post('/api/artworks', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/artworks', requireAuth, requireAdminOrCurator, async (req, res) => {
   try {
     const {
       ArtworkID,
@@ -1111,7 +1136,7 @@ app.post('/api/artworks', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // Update an existing artwork
-app.put('/api/artworks/:id', requireAuth, requireAdmin, async (req, res) => {
+app.put('/api/artworks/:id', requireAuth, requireAdminOrCurator, async (req, res) => {
   try {
     const {
       Name,
@@ -1192,7 +1217,7 @@ app.put('/api/artworks/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // Delete an artwork
-app.delete('/api/artworks/:id', requireAuth, requireAdmin, async (req, res) => {
+app.delete('/api/artworks/:id', requireAuth, requireAdminOrCurator, async (req, res) => {
   try {
     const artworkID = req.params.id;
 

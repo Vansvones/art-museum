@@ -43,7 +43,13 @@ export default function Login({onLogin}) {
 
 
       onLogin(data.user)
-      navigate(data.user.role === 'ADMIN' ? '/admin' : '/customer')
+      if (data.user.role === 'ADMIN') {
+        navigate('/admin')
+      } else if (data.user.role === 'CLERK') {
+        navigate('/clerk')
+      } else {
+        navigate('/customer')
+      }
     } catch (err) {
       setError(err.message || 'Could not connect to the server.')
     } finally {

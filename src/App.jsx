@@ -21,10 +21,12 @@ import MyTickets from './customer/MyTickets'
 import Tickets from './pages/Tickets'
 import Memberships from './pages/Memberships'
 import AdminDashboard from './admin/AdminDashboard'
+import ClerkDashboard from './clerk/ClerkDashboard'
 import Login from './auth/Login'
 import Register from './auth/Register'
 import ChangePassword from './auth/ChangePassword'
 import RequireAdmin from './auth/RequireAdmin';
+import RequireClerk from './auth/RequireClerk';
 import Stores from './pages/Stores'
 import DataReport from './pages/DataReport'
 import Visitors from './pages/Visitors'
@@ -245,6 +247,46 @@ function AdminLayout({user, onLogout}) {
   )
 }
 
+function ClerkLayout({ user, onLogout }) {
+  const navigate = useNavigate()
+
+  async function handleLogout() {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      })
+    } catch (error) {
+      console.error('Logout request failed:', error)
+    } finally {
+      onLogout()
+      navigate('/login', { replace: true })
+    }
+  }
+
+  return (
+    <>
+      <nav className="admin-nav">
+        <NavLink to="/clerk" end>Dashboard</NavLink>
+        <NavLink to="/clerk/tickets">Manage Tickets</NavLink>
+        <NavLink to="/clerk/stores">Manage Stores</NavLink>
+
+        {user && (
+          <button type="button" onClick={handleLogout}>
+            Log Out
+          </button>
+        )}
+      </nav>
+
+      <Routes>
+        <Route path="/" element={<ClerkDashboard />} />
+        <Route path="/tickets" element={<Tickets />} />
+        <Route path="/stores" element={<Stores />} />
+        <Route path="/items" element={<Stores />} />
+      </Routes>
+    </>
+  )
+}
 
 function App() {
   const [user, setUser] = useState(null)
@@ -320,6 +362,17 @@ function App() {
                 onLogout={() => setUser(null)} 
                 />
               </RequireAdmin>
+            }
+          />
+          <Route
+            path="/clerk/*"
+            element={
+              <RequireClerk>
+                <ClerkLayout
+                  user={user}
+                  onLogout={() => setUser(null)}
+                />
+              </RequireClerk>
             }
           />
         </Routes>

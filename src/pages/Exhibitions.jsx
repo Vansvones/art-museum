@@ -105,14 +105,6 @@ function Exhibitions() {
   async function saveExhibition(event) {
     event.preventDefault()
     setError('')
-    if (
-      form.StartDate &&
-      form.EndDate &&
-      form.EndDate < form.StartDate
-    ) {
-      setError('End date cannot be earlier than start date.')
-      return
-    }
     if (!form.GalleryID || !form.ManagerID) {
       setError('Please select both a gallery and a manager.')
       return
@@ -324,7 +316,12 @@ async function removeArtworkFromExhibition(artworkID) {
         <h2>Manage Exhibitions</h2>
         <p>Browse and manage the museum's exhibitions.</p>
     </div>
-        {error && <p className="error-message">{error}</p>}
+        {error && (
+          <div className="error-message">
+            <strong>Unable to save exhibition</strong>
+            <p>{error}</p>
+          </div>
+        )}
 
         <form className="exhibition-form" onSubmit={saveExhibition}>
         <h3>{editingId !== null ? 'Edit Exhibition' : 'Add Exhibition'}</h3>

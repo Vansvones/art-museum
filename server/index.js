@@ -71,6 +71,20 @@ const db = mysql.createPool({
   }
 });
 
+function handleDatabaseError(res, error, fallbackMessage) {
+  console.error('Database error:', error.message);
+
+  if (error.code === 'ER_SIGNAL_EXCEPTION' || error.errno === 1644) {
+    return res.status(400).json({
+      error: error.sqlMessage || error.message
+    });
+  }
+
+  return res.status(500).json({
+    error: fallbackMessage
+  });
+}
+
 // Home route
 app.get('/', (req, res) => {
   res.send('Museum backend is running!');
@@ -906,10 +920,13 @@ app.post('/api/exhibitions', requireAuth, requireAdminOrCurator, async (req, res
     );
 
     res.status(201).json({ message: 'Exhibition added successfully' });
-  } catch (error) {
-    console.error('Error adding exhibition:', error.message);
-    res.status(500).json({ error: 'Failed to add exhibition' });
-  }
+    } catch (error) {
+      return handleDatabaseError(
+        res,
+        error,
+        'Failed to add exhibition'
+      );
+    }
 });
 
 // Update an exhibition
@@ -953,10 +970,13 @@ app.put('/api/exhibitions/:id', requireAuth, requireAdminOrCurator, async (req, 
     }
 
     res.json({ message: 'Exhibition updated successfully' });
-  } catch (error) {
-    console.error('Error updating exhibition:', error.message);
-    res.status(500).json({ error: 'Failed to update exhibition' });
-  }
+    } catch (error) {
+      return handleDatabaseError(
+        res,
+        error,
+        'Failed to update exhibition'
+      );
+    }
 });
 
 // Delete an exhibition
@@ -1801,11 +1821,12 @@ app.post('/api/tickets', requireAuth, requireAdminOrClerk, async (req, res) => {
     )
 
     res.status(201).json({ message: 'Ticket added successfully' })
-  } catch (error) {
-    console.error('Error adding ticket:', error.message)
-    res.status(500).json({
-      error: 'Failed to add ticket. Check the ticket ID and related records.'
-    })
+    } catch (error) {
+    return handleDatabaseError(
+      res,
+      error,
+      'Failed to add ticket. Check the ticket ID and related records.'
+    )
   }
 })
 
@@ -1914,15 +1935,17 @@ app.post('/api/tickets/purchase', requireAuth, async (req, res) => {
       quantity: Quantity,
       total: Number(totalPrice.toFixed(2))
     });
-  } catch (error) {
-    await connection.rollback();
-    console.error('Ticket purchase failed:', error.message);
-    res.status(500).json({
-      error: 'Could not complete the ticket purchase.'
-    });
-  } finally {
-    connection.release();
-  }
+    } catch (error) {
+      await connection.rollback();
+
+      return handleDatabaseError(
+        res,
+        error,
+        'Could not complete the ticket purchase.'
+      );
+    } finally {
+      connection.release();
+    }
 });
 
 
@@ -1974,12 +1997,13 @@ app.put('/api/tickets/:id', requireAuth, requireAdminOrClerk, async (req, res) =
     }
 
     res.json({ message: 'Ticket updated successfully' })
-  } catch (error) {
-    console.error('Error updating ticket:', error.message)
-    res.status(500).json({
-      error: 'Failed to update ticket. Check the related records.'
-    })
-  }
+    } catch (error) {
+      return handleDatabaseError(
+        res,
+        error,
+        'Failed to update ticket. Check the related records.'
+      )
+    }
 })
 
 // Delete a ticket

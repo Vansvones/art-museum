@@ -4003,3 +4003,22 @@ footer {
   background: #75452f;
   color: #fffdf9;
 }
+
+.error-message {
+  background-color: #fff0ed;
+  border: 1px solid #c85c4a;
+  border-left: 5px solid #c0392b;
+  color: #8b2e22;
+  padding: 14px 18px;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+.error-message strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.error-message p {
+  margin: 0;
+}

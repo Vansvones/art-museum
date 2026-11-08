@@ -214,7 +214,12 @@ function Tickets() {
             </span>
         </div>
 
-      {error && <p className="error-message">{error}</p>}
+      {error && (
+        <div className="error-message">
+          <strong>Unable to save ticket</strong>
+          <p>{error}</p>
+        </div>
+      )}
 
       {visitors.length === 0 && (
         <p>
@@ -305,7 +310,7 @@ function Tickets() {
             name="Price"
             value={form.Price}
             onChange={handleChange}
-            min="0"
+
             max="9999.99"
             step="0.01"
           />

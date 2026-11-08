@@ -7,7 +7,10 @@ function formatDate(date) {
 
 function formatTime(time) {
   if (!time) return 'Not specified'
-  return String(time).slice(0, 5)
+  const [hours, minutes] = String(time).slice(0, 5).split(':').map(Number)
+  const period = hours >= 12 ? 'PM' : 'AM'
+  const displayHour = hours % 12 || 12
+  return `${displayHour}:${String(minutes).padStart(2, '0')} ${period}`
 }
 
 function ParkingPasses() {
@@ -143,12 +146,8 @@ function ParkingPasses() {
       VisitDate: formatDate(pass.VisitDate) === 'Not specified'
         ? ''
         : formatDate(pass.VisitDate),
-      ArrivalTime: formatTime(pass.ArrivalTime) === 'Not specified'
-        ? ''
-        : formatTime(pass.ArrivalTime),
-      DepartureTime: formatTime(pass.DepartureTime) === 'Not specified'
-        ? ''
-        : formatTime(pass.DepartureTime)
+      ArrivalTime: pass.ArrivalTime ? String(pass.ArrivalTime).slice(0, 5) : '',
+      DepartureTime: pass.DepartureTime ? String(pass.DepartureTime).slice(0, 5) : ''
     })
 
     window.scrollTo({ top: 0, behavior: 'smooth' })

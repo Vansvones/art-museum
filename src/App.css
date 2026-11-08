@@ -224,6 +224,9 @@ main {
 	line-height: 1.7;
 }
 
+.artworks-page .artwork-search {
+  margin-top: 16px;
+}
 
 .artworks-page .artwork-form {
 	display: block;
@@ -375,7 +378,9 @@ main {
 }
 
 /* Search and artwork cards */
-.artworks-page > input {
+.artworks-page > input,
+.employees-page .employee-search,
+.tickets-page .ticket-search {
 	display: block;
 	width: 100%;
 	max-width: 440px;
@@ -389,7 +394,9 @@ main {
 	font-size: 15px;
 }
 
-.artworks-page > input:focus {
+.artworks-page > input:focus,
+.employees-page .employee-search:focus,
+.tickets-page .ticket-search:focus {
 	outline: 2px solid rgba(117, 69, 47, 0.18);
 	border-color: #75452f;
 }
@@ -1258,12 +1265,11 @@ footer {
   font-size: 23px;
 }
 
-.tickets-list > input {
-  width: 260px;
-  max-width: 100%;
-  padding: 6px;
+.tickets-list > input.ticket-search {
+  width: 100%;
+  max-width: 440px;
+  box-sizing: border-box;
   margin-bottom: 24px;
-  font: inherit;
 }
 
 .tickets-list {
@@ -1379,67 +1385,277 @@ footer {
 	}
 }
 
-.ticket-purchase-form {
+/* Customer ticket purchase page */
+
+.ticket-page {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.ticket-page-header {
+  text-align: center;
+  padding: 35px 20px 40px;
+}
+
+.ticket-eyebrow {
+  color: #75452f;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+}
+
+.ticket-page-header h2 {
+  font-size: 2.2rem;
+  margin-bottom: 12px;
+}
+
+.ticket-page-header p:last-child {
+  color: #6f6259;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.ticket-options-header {
+  margin-bottom: 18px;
+}
+
+.ticket-options-header h3 {
+  margin-bottom: 5px;
+}
+
+.ticket-options-header p {
+  color: #75675d;
+}
+
+.ticket-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+  margin-bottom: 35px;
+}
+
+.ticket-option-card {
+  background: #fffaf4;
+  border: 1px solid #d8c8b9;
+  border-radius: 12px;
+  padding: 25px;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.ticket-option-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 5px 16px rgba(65, 42, 28, 0.1);
+}
+
+.ticket-option-card.selected {
+  border: 2px solid #75452f;
+  background: #f7eee5;
+  box-shadow: 0 3px 12px rgba(65, 42, 28, 0.1);
+}
+
+.ticket-option-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.ticket-option-label {
+  color: #75452f;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+}
+
+.ticket-option-price {
+  color: #75452f;
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.ticket-option-card h3 {
+  margin-bottom: 10px;
+  font-size: 1.25rem;
+}
+
+.ticket-option-card p {
+  color: #6f6259;
+  line-height: 1.6;
+  min-height: 50px;
+}
+
+.ticket-option-card ul {
+  padding-left: 20px;
+  margin: 18px 0;
+  color: #55483f;
+  line-height: 1.9;
+}
+
+.ticket-select-button {
+  width: 100%;
+  padding: 11px;
+  border: 1px solid #75452f;
+  border-radius: 6px;
+  background: transparent;
+  color: #75452f;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ticket-option-card.selected .ticket-select-button {
+  background: #75452f;
+  color: white;
+}
+
+.ticket-booking-layout {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 25px;
+  align-items: start;
+}
+
+.ticket-booking-form-card,
+.ticket-order-summary {
+  background: #fffaf4;
+  border: 1px solid #d8c8b9;
+  border-radius: 12px;
+  padding: 25px;
+}
+
+.ticket-section-heading {
+  margin-bottom: 25px;
+}
+
+.ticket-section-heading h3 {
+  margin-bottom: 7px;
+}
+
+.ticket-section-heading p {
+  color: #75675d;
+}
+
+.ticket-form-field {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  width: 100%;
-  max-width: 500px;
-  margin: 30px auto;
+  gap: 8px;
+  margin-bottom: 20px;
 }
 
-.ticket-purchase-form label {
-  display: block;
-  margin: 8px 0 0;
+.ticket-form-field label {
+  font-weight: 600;
+  color: #49372c;
 }
 
-.ticket-purchase-form input,
-.ticket-purchase-form select {
-  display: block;
+.ticket-form-field input,
+.ticket-form-field select {
   width: 100%;
-  min-height: 46px;
-  padding: 10px 12px;
-  box-sizing: border-box;
-  border: 1px solid #dfd1c5;
-  border-radius: 5px;
-  background: #fff;
-  color: #332820;
+  padding: 12px;
+  border: 1px solid #cdbbaa;
+  border-radius: 6px;
+  background: white;
+  color: #35271f;
   font: inherit;
 }
 
-.ticket-purchase-form button {
-  display: block;
+.ticket-form-field input:focus,
+.ticket-form-field select:focus {
+  outline: none;
+  border-color: #75452f;
+  box-shadow: 0 0 0 2px rgba(117, 69, 47, 0.12);
+}
+
+.ticket-form-field small {
+  color: #81746b;
+}
+
+.ticket-continue-button {
   width: 100%;
-  margin-top: 16px;
-  padding: 14px 20px;
+  padding: 14px;
+  background: #75452f;
+  color: white;
   border: none;
-  border-radius: 5px;
-  background-color: #75452f;
-  color: #fffdf9;
-  font-family: Georgia, serif;
-  font-size: 16px;
-  font-weight: bold;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  transition: background 0.2s;
 }
 
-.ticket-purchase-form button:hover {
-  background-color: #5b3828;
-  transform: translateY(-1px);
+.ticket-continue-button:hover {
+  background: #5e3524;
 }
 
-.ticket-purchase-form button:active {
-  transform: translateY(0);
+.ticket-order-summary {
+  position: sticky;
+  top: 20px;
 }
 
-.customer-content {
+.ticket-order-summary h3 {
+  margin-bottom: 22px;
+}
+
+.ticket-summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 13px 0;
+  border-bottom: 1px solid #e5d9cd;
+  color: #6f6259;
+}
+
+.ticket-summary-row strong {
+  color: #35271f;
+  text-align: right;
+}
+
+.ticket-summary-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 20px;
+  margin-top: 5px;
+  font-size: 1.15rem;
+}
+
+.ticket-summary-total strong {
+  color: #75452f;
+  font-size: 1.5rem;
+}
+
+.ticket-summary-note {
+  color: #81746b;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin-top: 20px;
+}
+
+.ticket-login-note {
   text-align: center;
+  margin-top: 18px;
+  color: #6f6259;
 }
 
-.customer-content .ticket-purchase-form {
-  text-align: left;
+.ticket-confirmation {
+  margin-bottom: 30px;
 }
 
+@media (max-width: 750px) {
+  .ticket-options-grid,
+  .ticket-booking-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .ticket-order-summary {
+    position: static;
+  }
+
+  .ticket-page-header h2 {
+    font-size: 1.7rem;
+  }
+}
 
 /* Checkout layout */
 .checkout-layout {
@@ -2481,6 +2697,25 @@ footer {
   outline-offset: 3px;
 }
 
+/* Visitor artists search bar */
+.customer-artists-page > input {
+  display: block;
+  width: 100%;
+  max-width: 440px;
+  height: 44px;
+  margin: 20px 0 28px;
+  padding: 10px 14px;
+  border: 1px solid #d7cec3;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #302820;
+  font-size: 15px;
+}
+
+.customer-artists-page > input:focus {
+  outline: 2px solid rgba(117, 69, 47, 0.18);
+  border-color: #75452f;
+}
 
 /* Visitor artworks page */
 .customer-artworks-page > h2 {
@@ -3819,14 +4054,6 @@ footer {
   margin-top: 0;
 }
 
-/* Assign membership form */
-.memberships-page .exhibition-form {
-  margin-bottom: 28px;
-}
-
-.memberships-page .exhibition-form h3 {
-  color: #75452f;
-}
 
 /* Form dropdowns */
 .memberships-page .exhibition-field select {
@@ -3941,6 +4168,7 @@ footer {
 }
 
 .memberships-page .exhibition-form {
+  margin-bottom: 40px;
   border: 1px solid #d7cec3;
   border-radius: 6px;
   padding: 24px;
@@ -3948,6 +4176,24 @@ footer {
   box-sizing: border-box;
 }
 
+.memberships-page .exhibition-form-actions {
+  margin-top: 24px;
+}
+
+.memberships-page .memberships-search {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 10px 0 30px;
+  padding: 11px 12px;
+  border: 1px solid #d7cec3;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #302820;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+}
 
 .visitor-nav,
 .admin-nav {
@@ -4165,3 +4411,207 @@ footer {
 		gap: 20px;
 	}
 }
+
+
+/* Parking Checkout */
+
+.checkout-layout {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 28px;
+  align-items: start;
+  margin: 30px auto;
+  max-width: 1100px;
+}
+
+.checkout-payment-card,
+.checkout-summary {
+  background: #fffdf9;
+  border: 1px solid #e3d6c7;
+  border-radius: 12px;
+  padding: 28px;
+  box-shadow: 0 4px 14px rgba(70, 43, 28, 0.07);
+}
+
+.checkout-payment-card h3,
+.checkout-summary h3 {
+  color: #75452f;
+  font-size: 21px;
+  margin: 0 0 22px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid #eadfd3;
+}
+
+.checkout-payment-card h3:not(:first-child) {
+  margin-top: 30px;
+}
+
+.checkout-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 18px;
+}
+
+.checkout-field label {
+  color: #493326;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.checkout-field input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid #d8c9b9;
+  border-radius: 7px;
+  background: #fff;
+  color: #30251f;
+  font-size: 15px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.checkout-field input::placeholder {
+  color: #aaa09a;
+}
+
+.checkout-field input:focus {
+  outline: none;
+  border-color: #75452f;
+  box-shadow: 0 0 0 3px rgba(117, 69, 47, 0.12);
+}
+
+.checkout-payment-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.checkout-demo-notice {
+  background: #f5eee6;
+  color: #65432f;
+  border-radius: 5px;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 22px;
+}
+
+.checkout-confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #493326;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 20px 0;
+}
+
+.checkout-confirmation input {
+  margin-top: 3px;
+  accent-color: #75452f;
+}
+
+.checkout-payment-card button {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 7px;
+  background: #75452f;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.checkout-payment-card button:hover:not(:disabled) {
+  background: #593321;
+  transform: translateY(-1px);
+}
+
+.checkout-payment-card button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.checkout-summary {
+  position: sticky;
+  top: 25px;
+}
+
+.checkout-detail {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 15px;
+  padding: 13px 0;
+  border-bottom: 1px solid #eee5dc;
+  font-size: 14px;
+}
+
+.checkout-detail span {
+  color: #786b61;
+}
+
+.checkout-detail strong {
+  color: #3e2c21;
+  text-align: right;
+}
+
+.checkout-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 2px solid #d9c6b4;
+  color: #75452f;
+  font-size: 18px;
+}
+
+.checkout-total strong {
+  font-size: 24px;
+}
+
+.checkout-back {
+  margin: 20px 0;
+}
+
+.checkout-back a {
+  color: #75452f;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.checkout-back a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 800px) {
+  .checkout-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .checkout-summary {
+    position: static;
+    grid-row: 1;
+  }
+}
+
+@media (max-width: 500px) {
+  .checkout-payment-card,
+  .checkout-summary {
+    padding: 20px 16px;
+  }
+
+  .checkout-payment-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .checkout-detail {
+    font-size: 13px;
+  }
+}
+

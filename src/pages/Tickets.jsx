@@ -343,6 +343,7 @@ function Tickets() {
         <h3>Tickets</h3>
 
         <input
+          className="ticket-search"
           type="text"
           placeholder="Search tickets..."
           value={search}

@@ -1,10 +1,11 @@
 
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 function CustomerTickets({ user, authChecked }) {
   const navigate = useNavigate()
-
+  const location = useLocation()
+  const purchase = location.state?.purchase
   const [ticketType, setTicketType] = useState('General Admission')
   const [visitDate, setVisitDate] = useState('')
   const [quantity, setQuantity] = useState(1)
@@ -69,107 +70,258 @@ function CustomerTickets({ user, authChecked }) {
 
   const total = prices[ticketType] * quantity
 
-  return (
-    <div className="customer-page">
-      <section className="customer-content">
-        <section className="galleries-page">
-        <h2>Purchase Tickets</h2>
-        </section>
-        <p>
-          Plan your visit to the Museum of Fine Arts by choosing
-          your ticket type, visit date, and quantity.
-        </p>
+    return (
+      <div className="customer-page">
+        <section className="customer-content ticket-page">
 
-        <div className="customer-options">
-          <div className="customer-card">
-            <h3>General Admission</h3>
-            <p>Access to the museum's general collection.</p>
-            <p><strong>$18.00</strong> per ticket</p>
+          <div className="ticket-page-header">
+            <p className="ticket-eyebrow">PLAN YOUR VISIT</p>
+            <h2>Get Your Museum Tickets</h2>
+            <p>
+              Discover our collections and exhibitions. Choose your tickets
+              and select a date for your visit.
+            </p>
           </div>
 
-          <div className="customer-card">
-            <h3>Single Exhibition</h3>
-            <p>Includes General Admission ($18.00) and a selected special exhibition ($12.00).</p>
-            <p><strong>$30.00</strong> per person</p>
-          </div>
-        </div>
+          {purchase && (
+            <div className="customer-card ticket-confirmation">
+              <h3>Ticket Purchase Confirmed!</h3>
+              <p>Your tickets were successfully purchased.</p>
 
-        <form className="ticket-purchase-form" onSubmit={handlePurchase}>
-          <label htmlFor="ticketType">Ticket Type</label>
-          <select
-            id="ticketType"
-            value={ticketType}
-            onChange={(event) => setTicketType(event.target.value)}
-          >
-            <option value="General Admission">General Admission — $18</option>
-            <option value="Single Exhibition">Single Exhibition + General Admission — $30</option>
-          </select>
+              <p>
+                <strong>Ticket IDs:</strong> {purchase.ticketIDs.join(', ')}
+              </p>
+              <p>
+                <strong>Ticket Type:</strong> {purchase.Type}
+              </p>
 
-          {ticketType === 'Single Exhibition' && (
-            <>
-              <label htmlFor="exhibition">Choose Exhibition</label>
-              <select
-                id="exhibition"
-                value={exhibitionId}
-                onChange={(event) => setExhibitionId(event.target.value)}
-                disabled={loading}
-              >
-                <option value="">
-                  {loading ? 'Loading exhibitions...' : 'Select an exhibition'}
-                </option>
+              {purchase.ExhibitionName && (
+                <p>
+                  <strong>Exhibition:</strong> {purchase.ExhibitionName}
+                </p>
+              )}
 
-                {exhibitions.map((exhibition) => (
-                  <option
-                    key={exhibition.ExhibitionID}
-                    value={exhibition.ExhibitionID}
-                  >
-                    {exhibition.Name}
-                  </option>
-                ))}
-              </select>
-            </>
+              <p>
+                <strong>Visit Date:</strong> {purchase.VisitDate}
+              </p>
+              <p>
+                <strong>Quantity:</strong> {purchase.quantity}
+              </p>
+              <p>
+                <strong>Total Paid:</strong> ${Number(purchase.total).toFixed(2)}
+              </p>
+            </div>
           )}
 
-          <label htmlFor="visitDate">Visit Date</label>
-          <input
-            id="visitDate"
-            type="date"
-            min={new Date().toLocaleDateString('en-CA')}
-            value={visitDate}
-            onChange={(event) => setVisitDate(event.target.value)}
-            required
-          />
-
-          <label htmlFor="quantity">Quantity</label>
-          <input
-            id="quantity"
-            type="number"
-            min="1"
-            max="10"
-            value={quantity}
-            onChange={(event) => {
-              setQuantity(Math.max(1, Math.min(10, Number(event.target.value))))
-            }}
-            required
-          />
-
-          <div className="ticket-total">
-            <h2>Total: ${total.toFixed(2)}</h2>
+          <div className="ticket-options-header">
+            <h3>Choose Your Experience</h3>
+            <p>Select the ticket that best fits your visit.</p>
           </div>
 
-          {error && <p className="error-message">{error}</p>}
+          <div className="ticket-options-grid">
+            <div
+              className={`ticket-option-card ${
+                ticketType === 'General Admission' ? 'selected' : ''
+              }`}
+              onClick={() => setTicketType('General Admission')}
+            >
+              <div className="ticket-option-top">
+                <span className="ticket-option-label">MUSEUM ACCESS</span>
+                <span className="ticket-option-price">$18</span>
+              </div>
 
-          <button type="submit">Continue to Purchase</button>
-        </form>
+              <h3>General Admission</h3>
+              <p>
+                Explore the museum's general collection and enjoy access
+                to its permanent galleries.
+              </p>
 
-        {authChecked && !user && (
-          <p>
-            Already have an account? <Link to="/login">Log in</Link> to continue.
-          </p>
-        )}
-      </section>
-    </div>
-  )
+              <ul>
+                <li>Access to general collections</li>
+                <li>Visit on your selected date</li>
+              </ul>
+
+              <button
+                type="button"
+                className="ticket-select-button"
+                onClick={() => setTicketType('General Admission')}
+              >
+                {ticketType === 'General Admission' ? 'Selected' : 'Select Ticket'}
+              </button>
+            </div>
+
+            <div
+              className={`ticket-option-card ${
+                ticketType === 'Single Exhibition' ? 'selected' : ''
+              }`}
+              onClick={() => setTicketType('Single Exhibition')}
+            >
+              <div className="ticket-option-top">
+                <span className="ticket-option-label">FULL EXPERIENCE</span>
+                <span className="ticket-option-price">$30</span>
+              </div>
+
+              <h3>Single Exhibition</h3>
+              <p>
+                Experience a special exhibition in addition to the
+                museum's general collection.
+              </p>
+
+              <ul>
+                <li>General admission included</li>
+                <li>Access to one special exhibition</li>
+              </ul>
+
+              <button
+                type="button"
+                className="ticket-select-button"
+                onClick={() => setTicketType('Single Exhibition')}
+              >
+                {ticketType === 'Single Exhibition' ? 'Selected' : 'Select Ticket'}
+              </button>
+            </div>
+          </div>
+
+          <div className="ticket-booking-layout">
+            <div className="ticket-booking-form-card">
+              <div className="ticket-section-heading">
+                <h3>Plan Your Visit</h3>
+                <p>Choose your visit date and the number of tickets.</p>
+              </div>
+
+              {ticketType === 'Single Exhibition' && (
+                <div className="ticket-form-field">
+                  <label htmlFor="exhibition">Special Exhibition</label>
+                  <select
+                    id="exhibition"
+                    value={exhibitionId}
+                    onChange={(event) => setExhibitionId(event.target.value)}
+                    disabled={loading}
+                  >
+                    <option value="">
+                      {loading ? 'Loading exhibitions...' : 'Select an exhibition'}
+                    </option>
+
+                    {exhibitions.map((exhibition) => (
+                      <option
+                        key={exhibition.ExhibitionID}
+                        value={exhibition.ExhibitionID}
+                      >
+                        {exhibition.Name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="ticket-form-field">
+                <label htmlFor="visitDate">Visit Date</label>
+                <input
+                  id="visitDate"
+                  type="date"
+                  min={new Date().toLocaleDateString('en-CA')}
+                  value={visitDate}
+                  onChange={(event) => setVisitDate(event.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="ticket-form-field">
+                <label htmlFor="quantity">Number of Visitors</label>
+                <input
+                  id="quantity"
+                  type="number"
+                  min="1"
+                  max="10"
+                  step="1"
+                  value={quantity}
+                  onChange={(event) => {
+                    const value = event.target.value
+                    if (value === '') {
+                      setQuantity('')
+                      return
+                    }
+                    const number = Number(value)
+                    if (Number.isInteger(number)) {
+                      setQuantity(Math.max(1, Math.min(10, number)))
+                    }
+                  }}
+                  onBlur={() => {
+                    if (quantity === '' || quantity < 1) {
+                      setQuantity(1)
+                    }
+                  }}
+                  required
+                />
+                <small>Enter between 1 and 10 visitors.</small>
+              </div>
+
+              {error && <p className="error-message">{error}</p>}
+
+              <button
+                type="button"
+                className="ticket-continue-button"
+                onClick={handlePurchase}
+              >
+                Continue to Checkout
+              </button>
+
+              {authChecked && !user && (
+                <p className="ticket-login-note">
+                  Already have an account? <Link to="/login">Log in</Link> to continue.
+                </p>
+              )}
+            </div>
+
+            <div className="ticket-order-summary">
+              <h3>Order Summary</h3>
+
+              <div className="ticket-summary-row">
+                <span>Ticket Type</span>
+                <strong>{ticketType}</strong>
+              </div>
+
+              {ticketType === 'Single Exhibition' && (
+                <div className="ticket-summary-row">
+                  <span>Exhibition</span>
+                  <strong>
+                    {exhibitions.find(
+                      (exhibition) =>
+                        Number(exhibition.ExhibitionID) === Number(exhibitionId)
+                    )?.Name || 'Not selected'}
+                  </strong>
+                </div>
+              )}
+
+              <div className="ticket-summary-row">
+                <span>Visit Date</span>
+                <strong>{visitDate || 'Not selected'}</strong>
+              </div>
+
+              <div className="ticket-summary-row">
+                <span>Visitors</span>
+                <strong>{quantity}</strong>
+              </div>
+
+              <div className="ticket-summary-row">
+                <span>Price per person</span>
+                <strong>${prices[ticketType].toFixed(2)}</strong>
+              </div>
+
+              <div className="ticket-summary-total">
+                <span>Total</span>
+                <strong>${total.toFixed(2)}</strong>
+              </div>
+
+              <p className="ticket-summary-note">
+                Your order will be reviewed before completing checkout.
+              </p>
+            </div>
+          </div>
+
+        </section>
+      </div>
+    )
 }
 
 export default CustomerTickets

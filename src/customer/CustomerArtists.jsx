@@ -24,14 +24,13 @@ export default function CustomerArtists() {
   )
 
   return (
-  <section className="galleries-page">
+  <section className="galleries-page customer-artists-page">
     <h2>Explore Artists</h2>
     <p>Discover the artists behind our collection.</p>
 
     {error && <p role="alert">{error}</p>}
 
     <input
-      className="artist-search"
       type="text"
       placeholder="Search artists by name or nationality..."
       value={search}

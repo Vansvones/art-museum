@@ -1949,6 +1949,7 @@ app.post('/api/tickets/purchase', requireAuth, async (req, res) => {
 });
 
 
+
 // Update a ticket
 app.put('/api/tickets/:id', requireAuth, requireAdminOrClerk, async (req, res) => {
   const {
@@ -2416,6 +2417,344 @@ app.get('/api/parking-lots', async (req, res) => {
   } catch (error) {
     console.error('Error fetching parking lots:', error.message)
     res.status(500).json({ error: 'Failed to fetch parking lots' })
+  }
+})
+
+// Create a parking reservation
+app.post('/api/parking-passes/purchase', requireAuth, async (req, res) => {
+  const visitorID = req.user.VisitorID;
+  const { ParkingLotID, VisitDate, ArrivalTime, DepartureTime } = req.body;
+
+  if (req.user.role !== 'VISITOR' || !visitorID) {
+    return res.status(403).json({
+      error: 'A visitor account is required to reserve parking.'
+    });
+  }
+
+    const validDate =
+    /^\d{4}-\d{2}-\d{2}$/.test(VisitDate || '') &&
+    !Number.isNaN(Date.parse(VisitDate)) &&
+    new Date(VisitDate).toISOString().slice(0, 10) === VisitDate;
+
+  const validArrival =
+    /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(ArrivalTime || '');
+
+  const validDeparture =
+    /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(DepartureTime || '');
+
+  if (
+    !Number.isInteger(Number(ParkingLotID)) ||
+    Number(ParkingLotID) <= 0 ||
+    !validDate ||
+    !validArrival ||
+    !validDeparture ||
+    ArrivalTime >= DepartureTime
+  ) {
+    return res.status(400).json({
+      error: 'Please provide valid parking reservation details.'
+    });
+  }
+
+  if (VisitDate < new Date().toISOString().slice(0, 10)) {
+    return res.status(400).json({
+      error: 'Visit date cannot be in the past.'
+    });
+  }
+
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [lots] = await connection.query(
+      `SELECT HourlyRate
+       FROM PARKING_LOT
+       WHERE ParkingLotID = ?`,
+      [Number(ParkingLotID)]
+    );
+
+    if (lots.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({
+        error: 'The selected parking lot does not exist.'
+      });
+    }
+
+    const arrival = ArrivalTime.split(':').map(Number);
+    const departure = DepartureTime.split(':').map(Number);
+
+    const arrivalMinutes = arrival[0] * 60 + arrival[1];
+    const departureMinutes = departure[0] * 60 + departure[1];
+
+    const duration = (departureMinutes - arrivalMinutes) / 60;
+
+    const totalPrice = Number(
+      (duration * Number(lots[0].HourlyRate)).toFixed(2)
+    );
+
+    const [result] = await connection.query(
+      `INSERT INTO PARKING_PASS
+       (ParkingLotID, VisitorID, VisitDate, ArrivalTime, DepartureTime, TotalPrice)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        Number(ParkingLotID),
+        visitorID,
+        VisitDate,
+        ArrivalTime,
+        DepartureTime,
+        totalPrice
+      ]
+    );
+
+    await connection.commit();
+
+    res.status(201).json({
+      message: 'Parking reservation confirmed successfully.',
+      ParkingPassID: result.insertId,
+      totalPrice,
+      duration
+    });
+
+  } catch (error) {
+    await connection.rollback();
+
+    return handleDatabaseError(
+      res,
+      error,
+      'Could not complete the parking reservation.'
+    );
+
+  } finally {
+    connection.release();
+  }
+});
+
+
+// Get all parking passes
+app.get('/api/parking-passes', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT
+        P.ParkingPassID,
+        P.ParkingLotID,
+        P.VisitorID,
+        P.VisitDate,
+        P.ArrivalTime,
+        P.DepartureTime,
+        P.TotalPrice,
+        L.Name AS ParkingLotName,
+        L.HourlyRate,
+        V.FirstName,
+        V.LastName
+      FROM PARKING_PASS P
+      JOIN PARKING_LOT L ON P.ParkingLotID = L.ParkingLotID
+      JOIN VISITOR V ON P.VisitorID = V.VisitorID
+      ORDER BY P.VisitDate DESC, P.ArrivalTime
+    `)
+
+    res.json(rows)
+  } catch (error) {
+    console.error('Error fetching parking passes:', error.message)
+    res.status(500).json({ error: 'Failed to fetch parking passes.' })
+  }
+})
+
+
+// Add a parking pass (admin only)
+app.post('/api/parking-passes', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { ParkingLotID, VisitorID, VisitDate, ArrivalTime, DepartureTime } = req.body
+
+    const lotID = Number(ParkingLotID)
+    const visitorID = Number(VisitorID)
+
+    const validDate =
+      /^\d{4}-\d{2}-\d{2}$/.test(VisitDate || '') &&
+      !Number.isNaN(Date.parse(VisitDate)) &&
+      new Date(VisitDate).toISOString().slice(0, 10) === VisitDate
+
+    const validArrival =
+      /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(ArrivalTime || '')
+
+    const validDeparture =
+      /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(DepartureTime || '')
+
+    if (
+      !Number.isInteger(lotID) || lotID <= 0 ||
+      !Number.isInteger(visitorID) || visitorID <= 0 ||
+      !validDate ||
+      !validArrival ||
+      !validDeparture ||
+      ArrivalTime >= DepartureTime
+    ) {
+      return res.status(400).json({
+        error: 'Please provide valid parking pass details.'
+      })
+    }
+
+    const [lots] = await db.query(
+      'SELECT HourlyRate FROM PARKING_LOT WHERE ParkingLotID = ?',
+      [lotID]
+    )
+
+    if (lots.length === 0) {
+      return res.status(404).json({ error: 'Parking lot not found.' })
+    }
+
+    const [visitors] = await db.query(
+      'SELECT VisitorID FROM VISITOR WHERE VisitorID = ?',
+      [visitorID]
+    )
+
+    if (visitors.length === 0) {
+      return res.status(404).json({ error: 'Visitor not found.' })
+    }
+
+    const arrival = ArrivalTime.split(':').map(Number)
+    const departure = DepartureTime.split(':').map(Number)
+
+    const duration =
+      (departure[0] * 60 + departure[1] -
+       arrival[0] * 60 - arrival[1]) / 60
+
+    const totalPrice = Number(
+      (duration * Number(lots[0].HourlyRate)).toFixed(2)
+    )
+
+    const [result] = await db.query(
+      `INSERT INTO PARKING_PASS
+       (ParkingLotID, VisitorID, VisitDate, ArrivalTime, DepartureTime, TotalPrice)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [lotID, visitorID, VisitDate, ArrivalTime, DepartureTime, totalPrice]
+    )
+
+    res.status(201).json({
+      message: 'Parking pass added successfully.',
+      ParkingPassID: result.insertId
+    })
+  } catch (error) {
+    console.error('Error adding parking pass:', error.message)
+    return handleDatabaseError(res, error, 'Could not add parking pass.')
+  }
+})
+
+
+//update a parking pass
+app.put('/api/parking-passes/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const passID = Number(req.params.id)
+    const { ParkingLotID, VisitorID, VisitDate, ArrivalTime, DepartureTime } = req.body
+
+    const lotID = Number(ParkingLotID)
+    const visitorID = Number(VisitorID)
+
+    const validDate =
+      /^\d{4}-\d{2}-\d{2}$/.test(VisitDate || '') &&
+      !Number.isNaN(Date.parse(VisitDate)) &&
+      new Date(VisitDate).toISOString().slice(0, 10) === VisitDate
+
+    const validArrival =
+      /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(ArrivalTime || '')
+
+    const validDeparture =
+      /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(DepartureTime || '')
+
+    if (
+      !Number.isInteger(passID) || passID <= 0 ||
+      !Number.isInteger(lotID) || lotID <= 0 ||
+      !Number.isInteger(visitorID) || visitorID <= 0 ||
+      !validDate ||
+      !validArrival ||
+      !validDeparture ||
+      ArrivalTime >= DepartureTime
+    ) {
+      return res.status(400).json({
+        error: 'Please provide valid parking pass details.'
+      })
+    }
+
+    const [lots] = await db.query(
+      'SELECT HourlyRate FROM PARKING_LOT WHERE ParkingLotID = ?',
+      [lotID]
+    )
+
+    if (lots.length === 0) {
+      return res.status(404).json({ error: 'Parking lot not found.' })
+    }
+
+    const [visitors] = await db.query(
+      'SELECT VisitorID FROM VISITOR WHERE VisitorID = ?',
+      [visitorID]
+    )
+
+    if (visitors.length === 0) {
+      return res.status(404).json({ error: 'Visitor not found.' })
+    }
+
+    const arrival = ArrivalTime.split(':').map(Number)
+    const departure = DepartureTime.split(':').map(Number)
+
+    const duration =
+      (departure[0] * 60 + departure[1] -
+       arrival[0] * 60 - arrival[1]) / 60
+
+    const totalPrice = Number(
+      (duration * Number(lots[0].HourlyRate)).toFixed(2)
+    )
+
+    const [result] = await db.query(
+      `UPDATE PARKING_PASS
+       SET ParkingLotID = ?,
+           VisitorID = ?,
+           VisitDate = ?,
+           ArrivalTime = ?,
+           DepartureTime = ?,
+           TotalPrice = ?
+       WHERE ParkingPassID = ?`,
+      [lotID, visitorID, VisitDate, ArrivalTime, DepartureTime, totalPrice, passID]
+    )
+
+    if (result.affectedRows === 0) {
+      const [existing] = await db.query(
+        'SELECT ParkingPassID FROM PARKING_PASS WHERE ParkingPassID = ?',
+        [passID]
+      )
+
+      if (existing.length === 0) {
+        return res.status(404).json({ error: 'Parking pass not found.' })
+      }
+    }
+
+    res.json({ message: 'Parking pass updated successfully.' })
+  } catch (error) {
+    console.error('Error updating parking pass:', error.message)
+    return handleDatabaseError(res, error, 'Could not update parking pass.')
+  }
+})
+
+
+// Delete a parking pass
+app.delete('/api/parking-passes/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const passID = Number(req.params.id)
+
+    if (!Number.isInteger(passID) || passID <= 0) {
+      return res.status(400).json({ error: 'Invalid parking pass ID.' })
+    }
+
+    const [result] = await db.query(
+      'DELETE FROM PARKING_PASS WHERE ParkingPassID = ?',
+      [passID]
+    )
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Parking pass not found.' })
+    }
+
+    res.json({ message: 'Parking pass deleted successfully.' })
+  } catch (error) {
+    console.error('Error deleting parking pass:', error.message)
+    return handleDatabaseError(res, error, 'Could not delete parking pass.')
   }
 })
 

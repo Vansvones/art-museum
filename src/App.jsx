@@ -13,12 +13,14 @@ import CustomerExhibitions from './customer/CustomerExhibitions'
 import CustomerStores from './customer/CustomerStores'
 import CustomerMemberships from './customer/CustomerMemberships'
 import CustomerParking from './customer/CustomerParking'
+import CustomerParkingCheckout from './customer/CustomerParkingCheckout'
 import CustomerTickets from './customer/CustomerTickets'
 import CustomerCheckout from './customer/CustomerCheckout'
 import CustomerArtistArtworks from './customer/CustomerArtistArtworks'
 import CustomerAccount from './customer/CustomerAccount'
 import MyTickets from './customer/MyTickets'
 import Tickets from './pages/Tickets'
+import ParkingPasses from './pages/ParkingPasses'
 import Memberships from './pages/Memberships'
 import AdminDashboard from './admin/AdminDashboard'
 import ClerkDashboard from './clerk/ClerkDashboard'
@@ -50,6 +52,7 @@ function VisitorNav({ user, onLogout }) {
 
   return (
     <nav className="visitor-nav">
+      <NavLink to="/">Main Home</NavLink>
       <NavLink to="/customer" end>Home</NavLink>
       <NavLink to="/customer/artworks">Artworks</NavLink>
       <NavLink to="/customer/artists">Artists</NavLink>
@@ -60,7 +63,6 @@ function VisitorNav({ user, onLogout }) {
       <NavLink to="/customer/stores">Museum Stores</NavLink>
       <NavLink to="/customer/memberships">Memberships</NavLink>
       <NavLink to="/customer/parking">Parking</NavLink>
-      <NavLink to="/">Main Home</NavLink>
       <NavLink to="/customer/account">My Account</NavLink>
 
       {user && (
@@ -187,6 +189,7 @@ function VisitorLayout( {onLogout, user, authChecked} ) {
   return (
     <>
       <nav className="visitor-nav">
+        <NavLink to="/">Main Home</NavLink>
       <NavLink to="/customer" end>Home</NavLink>
       <NavLink to="/customer/artworks">Artworks</NavLink>
       <NavLink to="/customer/artists">Artists</NavLink>
@@ -197,7 +200,6 @@ function VisitorLayout( {onLogout, user, authChecked} ) {
       <NavLink to="/customer/stores">Museum Stores</NavLink>
       <NavLink to="/customer/memberships">Memberships</NavLink>
       <NavLink to="/customer/parking">Parking</NavLink>
-      <NavLink to="/">Main Home</NavLink>
       <NavLink to="/customer/account">My Account</NavLink>
 
       {user && (
@@ -223,6 +225,10 @@ function VisitorLayout( {onLogout, user, authChecked} ) {
         <Route path="/stores" element={<CustomerStores />} />
         <Route path="/memberships" element={<CustomerMemberships />} />
         <Route path="/parking" element={<CustomerParking />} />
+        <Route
+          path="/parking-checkout"
+          element={<CustomerParkingCheckout />}
+        />
         <Route
           path="/account"
           element={<CustomerAccount onLogout={onLogout} />}
@@ -256,12 +262,13 @@ function AdminLayout({user, onLogout}) {
       <NavLink to="/admin/artworks">Manage Artworks</NavLink>
       <NavLink to="/admin/artists">Manage Artists</NavLink>
       <NavLink to="/admin/galleries">Manage Galleries</NavLink>
-      <NavLink to="/admin/stores">Manage Stores</NavLink>
       <NavLink to="/admin/exhibitions">Manage Exhibitions</NavLink>
+      <NavLink to="/admin/stores">Manage Stores</NavLink>
       <NavLink to="/admin/employees">Manage Employees</NavLink>
       <NavLink to="/admin/visitors">Manage Visitors</NavLink>
       <NavLink to="/admin/tickets">Manage Tickets</NavLink>
       <NavLink to="/admin/memberships">Manage Memberships</NavLink>
+      <NavLink to="/admin/parking-passes">Manage Parking Passes</NavLink>
 
       {user && (
         <button type="button" onClick={handleLogout}>
@@ -282,6 +289,7 @@ function AdminLayout({user, onLogout}) {
         <Route path="/tickets" element={<Tickets />} />
         <Route path="/data-report" element={<DataReport />} />
         <Route path="/memberships" element={<Memberships />} />
+        <Route path="/parking-passes" element={<ParkingPasses />} />
       </Routes>
     </>
   )

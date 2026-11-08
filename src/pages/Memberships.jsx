@@ -197,6 +197,7 @@ function Memberships() {
         </div>
       </form>
 
+        <h3 className="memberships-section-title">Memberships</h3>
         <input
           className="memberships-search"
           type="text"

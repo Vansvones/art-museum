@@ -314,6 +314,7 @@ function Artworks() {
 
 
       <input
+        className="artwork-search"
         placeholder="Search by artwork, artist, or origin..."
         value={search}
         onChange={e => setSearch(e.target.value)}

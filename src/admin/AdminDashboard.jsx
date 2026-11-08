@@ -32,14 +32,6 @@ function AdminDashboard() {
         </div>
 
         <div className="admin-card">
-          <h3>Manage Stores</h3>
-          <p>Maintain museum store information and records.</p>
-          <Link to="/admin/stores">
-            <button type="button">Manage Stores</button>
-          </Link>
-        </div>
-
-        <div className="admin-card">
           <h3>Manage Exhibitions</h3>
           <p>Maintain exhibitions and their displayed artworks.</p>
           <Link to="/admin/exhibitions">
@@ -48,10 +40,26 @@ function AdminDashboard() {
         </div>
 
         <div className="admin-card">
+          <h3>Manage Stores</h3>
+          <p>Maintain museum store information and records.</p>
+          <Link to="/admin/stores">
+            <button type="button">Manage Stores</button>
+          </Link>
+        </div>
+
+        <div className="admin-card">
           <h3>Manage Employees</h3>
           <p>View and manage museum employee records.</p>
           <Link to="/admin/employees">
             <button type="button">Manage Employees</button>
+          </Link>
+        </div>
+
+        <div className="admin-card">
+          <h3>Manage Visitors</h3>
+          <p>View and manage museum visitor records.</p>
+          <Link to="/admin/visitors">
+            <button type="button">Manage Visitors</button>
           </Link>
         </div>
 
@@ -68,6 +76,14 @@ function AdminDashboard() {
           <p>View and manage museum visitor memberships.</p>
           <Link to="/admin/memberships">
             <button type="button">Manage Memberships</button>
+          </Link>
+        </div>
+
+        <div className="admin-card">
+          <h3>Manage Parking Passes</h3>
+          <p>View and manage visitor parking passes.</p>
+          <Link to="/admin/parking-passes">
+            <button type="button">Manage Parking Passes</button>
           </Link>
         </div>
 

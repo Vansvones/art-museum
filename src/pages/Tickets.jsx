@@ -310,7 +310,6 @@ function Tickets() {
             name="Price"
             value={form.Price}
             onChange={handleChange}
-
             max="9999.99"
             step="0.01"
           />
@@ -366,7 +365,7 @@ function Tickets() {
               </p>
               <p><strong>Purchase Date:</strong> {formatDate(ticket.PurchaseDate)}</p>
               <p><strong>Visit Date:</strong> {formatDate(ticket.VisitDate)}</p>
-              <p><strong>Price:</strong> {ticket.Price ?? 'Not specified'}</p>
+              <p><strong>Price:</strong>{' '} {ticket.Price == null ? 'Not specified' : `$${Number(ticket.Price).toFixed(2)}`}</p>
               <p>
                 <strong>Status:</strong> {ticket.Status || 'Active'}
               </p>

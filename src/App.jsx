@@ -34,10 +34,48 @@ import DataReport from './pages/DataReport'
 import Visitors from './pages/Visitors'
 import './App.css'
 
+function VisitorNav({ user, onLogout }) {
+  async function handleLogout() {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      })
+    } catch (error) {
+      console.error('Logout request failed:', error)
+    } finally {
+      onLogout()
+    }
+  }
 
-function Home({user, authChecked}) {
+  return (
+    <nav className="visitor-nav">
+      <NavLink to="/customer" end>Home</NavLink>
+      <NavLink to="/customer/artworks">Artworks</NavLink>
+      <NavLink to="/customer/artists">Artists</NavLink>
+      <NavLink to="/customer/galleries">Galleries</NavLink>
+      <NavLink to="/customer/exhibitions">Exhibitions</NavLink>
+      <NavLink to="/customer/my-tickets">My Tickets</NavLink>
+      <NavLink to="/customer/tickets">Buy Tickets</NavLink>
+      <NavLink to="/customer/stores">Museum Stores</NavLink>
+      <NavLink to="/customer/memberships">Memberships</NavLink>
+      <NavLink to="/customer/parking">Parking</NavLink>
+      <NavLink to="/">Main Home</NavLink>
+      <NavLink to="/customer/account">My Account</NavLink>
+
+      {user && (
+        <button type="button" onClick={handleLogout}>
+          Log Out
+        </button>
+      )}
+    </nav>
+  )
+}
+
+function Home({user, authChecked, onLogout}) {
   return (
     <div className="home-page">
+      <VisitorNav user={user} onLogout={onLogout} />
       <section className="home-hero">
         <div className="home-hero-content">
           <p className="home-eyebrow">MUSEUM OF FINE ARTS</p>
@@ -379,7 +417,16 @@ function App() {
         <Routes>
           <Route
             path="/"
-            element={<Home user={user} authChecked={authChecked} />}
+            element={
+              <Home
+                user={user}
+                authChecked={authChecked}
+                onLogout={() => {
+                  setUser(null)
+                  window.location.href = '/'
+                }}
+              />
+            }
           />
           <Route
             path="/login"

@@ -86,20 +86,21 @@ export default function CustomerExhibitions() {
                 timeZone: 'UTC'
               })}
               {' – '}
-              {new Date(exhibition.EndDate).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-                timeZone: 'UTC'
-              })}
+              {exhibition.EndDate
+                ? new Date(exhibition.EndDate).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    timeZone: 'UTC'
+                  })
+                : 'Ongoing'}
             </p>
 
             <p>
-              {new Date(exhibition.StartDate) <= new Date() &&
-              new Date(exhibition.EndDate) >= new Date()
-                ? 'Currently active'
-                : new Date(exhibition.StartDate) > new Date()
-                  ? 'Upcoming'
+              {new Date(exhibition.StartDate) > new Date()
+                ? 'Upcoming'
+                : !exhibition.EndDate || new Date(exhibition.EndDate) >= new Date()
+                  ? 'Currently active'
                   : 'Ended'}
             </p>
 

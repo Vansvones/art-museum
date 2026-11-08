@@ -2558,9 +2558,9 @@ footer {
 
 .home-hero {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   min-height: 430px;
-  padding: 72px 8%;
+  padding: 40px 8% 72px;
   background: #eee5d8;
 }
 

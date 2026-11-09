@@ -8,7 +8,7 @@ export default defineConfig({
     proxy: {
       // Whenever React fetches '/api/...', forward it to the Node backend
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:5001',
         changeOrigin: true,
         secure: false,
       },

@@ -1157,6 +1157,11 @@ footer {
 	border-color: #75452f;
 }
 
+.employees-page .employee-section > h3 {
+  color: #75452f;
+  font-family: Georgia, serif;
+}
+
 
 .tickets-page {
   width: min(1100px, calc(100% - 48px));
@@ -1165,6 +1170,19 @@ footer {
   padding: 0;
   color: #302820;
   box-sizing: border-box;
+}
+
+.tickets-page .tickets-list > h3 {
+  color: #75452f;
+  font-family: Georgia, serif;
+}
+
+.tickets-page .ticket-form h3 {
+  margin: 0 0 24px;
+  color: #75452f;
+  font-family: Georgia, serif;
+  font-size: 24px;
+  text-align: left;
 }
 
 .tickets-header {
@@ -1847,6 +1865,12 @@ footer {
 	border-radius: 4px;
 	box-shadow: none;
 	text-align: left;
+}
+
+.exhibitions-page .exhibitions-header p {
+  margin: 0;
+  color: #6b625c;
+  font-size: 15px;
 }
 
 .exhibitions-page .exhibition-form h3 {
@@ -3815,11 +3839,35 @@ footer {
 /* Manage Visitors */
 
 .visitors-page {
-	padding: 24px;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 40px;
+  box-sizing: border-box;
 }
 
 .visitor-section {
 	margin-top: 28px;
+}
+
+.visitors-page .visitor-section > h3 {
+  color: #75452f;
+  font-family: Georgia, serif;
+}
+
+.visitors-page .visitor-form h3 {
+  margin: 0 0 24px;
+  color: #75452f;
+  font-family: Georgia, serif;
+  font-size: 24px;
+  text-align: left;
+}
+
+.visitors-page .visitor-form {
+  background: #ffffff;
+  border: 1px solid #e5ddd3;
+  border-radius: 4px;
+  box-shadow: none;
 }
 
 .visitor-section-heading {
@@ -4033,7 +4081,7 @@ footer {
 /* MEMBERSHIPS PAGE */
 .memberships-page {
   width: 100%;
-  max-width: 1400px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 24px 40px;
   box-sizing: border-box;
@@ -4043,6 +4091,12 @@ footer {
 /* Page heading */
 .memberships-page .exhibitions-header {
   margin-bottom: 24px;
+}
+
+.memberships-page .exhibitions-header p {
+  margin: 0;
+  color: #6b625c;
+  font-size: 15px;
 }
 
 .memberships-page .exhibitions-header h2 {
@@ -4085,6 +4139,21 @@ footer {
 .memberships-page .exhibition-form-actions button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.memberships-page .memberships-list-header {
+  margin: 32px 0 20px;
+}
+
+.memberships-page .memberships-list-header h3 {
+  margin: 0 0 14px;
+  color: #75452f;
+  font-family: Georgia, serif;
+  font-size: 22px;
+}
+
+.memberships-page .memberships-search {
+  margin: 0;
 }
 
 /* Search input */
@@ -4174,6 +4243,14 @@ footer {
   padding: 24px;
   background-color: #ffffff;
   box-sizing: border-box;
+}
+
+.memberships-page .exhibition-form h3 {
+  margin: 0 0 24px;
+  color: #75452f;
+  font-family: Georgia, serif;
+  font-size: 24px;
+  text-align: left;
 }
 
 .memberships-page .exhibition-form-actions {

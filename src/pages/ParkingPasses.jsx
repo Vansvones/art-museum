@@ -317,6 +317,7 @@ function ParkingPasses() {
         <h3>Parking Passes</h3>
 
         <input
+          className="ticket-search"
           type="text"
           placeholder="Search parking passes..."
           value={search}

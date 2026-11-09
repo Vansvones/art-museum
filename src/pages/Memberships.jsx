@@ -197,21 +197,24 @@ function Memberships() {
         </div>
       </form>
 
-        <h3 className="memberships-section-title">Memberships</h3>
-        <input
-          className="memberships-search"
-          type="text"
-          placeholder="Search by visitor, membership type, or ID..."
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
+        <div className="memberships-list-header">
+          <h3>Memberships</h3>
+
+          <input
+            className="memberships-search"
+            type="text"
+            placeholder="Search by visitor, membership type, or ID..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </div>
 
         {loading && <p>Loading memberships...</p>}
         {error && <p className="error-message">{error}</p>}
 
         {!loading && !error && (
           <section className="customer-content">
-            <h2>All Memberships ({memberships.length})</h2>
+            <h2>All Memberships ({filteredMemberships.length})</h2>
 
             {filteredMemberships.length === 0 ? (
               <p>No memberships found.</p>

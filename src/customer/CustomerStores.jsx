@@ -103,6 +103,11 @@ function CustomerStores() {
                 <p>
                   <strong>Quantity:</strong> {item.StockCount}
                 </p>
+                {Number(item.StockCount) < 10 && (
+                  <p style={{ color: '#b42318', fontWeight: 'bold' }}>
+                    Low Stock
+                  </p>
+                )}
               </div>
             ))}
           </div>

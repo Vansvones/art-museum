@@ -1007,6 +1007,12 @@ footer {
   font-size: 26px;
 }
 
+.low-stock {
+  color: #b42318;
+  font-weight: bold;
+  margin-top: 5px;
+}
+
 /* RESPONSIVE LAYOUT*/
 
 @media (max-width: 800px) {

@@ -65,48 +65,48 @@ function CustomerMemberships() {
   ]
 
   const purchaseMembership = async (option) => {
-  if (!loggedIn) {
-    window.location.href = '/login'
-    return
-  }
+    if (!loggedIn) {
+      window.location.href = '/login'
+      return
+    }
 
-  try {
-    const response = await fetch(
-      'http://localhost:3000/api/memberships/purchase',
-      {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          MembershipType: option.name
-        })
+    try {
+      const response = await fetch(
+        '/api/memberships/purchase',
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            MembershipType: option.name
+          })
+        }
+      )
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Purchase failed.')
       }
-    )
 
-    const data = await response.json()
+      alert('Membership purchased successfully!')
 
-    if (!response.ok) {
-      throw new Error(data.error || 'Purchase failed.')
+      const membershipsResponse = await fetch(
+        '/api/my-memberships',
+        { credentials: 'include' }
+      )
+
+      if (!membershipsResponse.ok) {
+        throw new Error('Membership purchased, but memberships could not be refreshed.')
+      }
+
+      setMemberships(await membershipsResponse.json())
+    } catch (error) {
+      alert(error.message)
     }
-
-    alert('Membership purchased successfully!')
-
-    const membershipsResponse = await fetch(
-      'http://localhost:3000/api/my-memberships',
-      { credentials: 'include' }
-    )
-
-    if (!membershipsResponse.ok) {
-      throw new Error('Membership purchased, but memberships could not be refreshed.')
-    }
-
-    setMemberships(await membershipsResponse.json())
-  } catch (error) {
-    alert(error.message)
   }
-}
 
   const cancelMembership = async (membershipID) => {
     if (!window.confirm('Are you sure you want to cancel this membership?')) {
@@ -115,7 +115,7 @@ function CustomerMemberships() {
 
     try {
       const response = await fetch(
-        `http://localhost:3000/api/my-memberships/${membershipID}`,
+        `/api/my-memberships/${membershipID}`,
         {
           method: 'DELETE',
           credentials: 'include'

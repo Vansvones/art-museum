@@ -1951,7 +1951,7 @@ footer {
 .exhibitions-page .exhibition-form-actions {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 10px;
+	gap: 30px;
 	margin: 24px 0 0;
 }
 
@@ -1982,6 +1982,51 @@ footer {
 
 .exhibitions-page .exhibition-form-actions button[type="button"]:hover {
 	background: #e0d6ca;
+}
+
+.memberships-page .exhibition-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  margin: 24px 0 0;
+}
+
+.memberships-page .exhibition-form-actions button {
+  margin: 0;
+}
+
+.memberships-page .customer-card button {
+  margin-right: 10px;
+}
+
+.memberships-page .customer-card button:last-child {
+  margin-right: 0;
+}
+
+/* Make membership type section match assignment form width */
+
+.memberships-page > .customer-content {
+  display: block;
+  width: 100%;
+  max-width: none;
+  margin: 0 0 40px;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.memberships-page > .customer-content .exhibition-form {
+  display: block;
+  width: 100%;
+  max-width: none;
+  margin: 0 0 30px;
+  box-sizing: border-box;
+}
+
+.memberships-page > .exhibition-form {
+  display: block;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
 }
 
 /* Exhibition list */

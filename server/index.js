@@ -2193,44 +2193,35 @@ app.get('/api/memberships', requireAuth, requireAdmin, async (req, res) => {
  // Add a membership to a visitor (admin only)
 app.post('/api/memberships', requireAuth, requireAdmin, async (req, res) => {
   const { VisitorID, MembershipType } = req.body;
-
-  const prices = {
-    Individual: 85.00,
-    Dual: 120.00,
-    Family: 150.00,
-    Student: 45.00,
-    Senior: 65.00
-  };
-
   const visitorID = Number(VisitorID);
 
   if (!Number.isInteger(visitorID) || visitorID <= 0) {
-    return res.status(400).json({
-      error: 'Please select a valid visitor.'
-    });
-  }
-
-  if (!Object.hasOwn(prices, MembershipType)) {
-    return res.status(400).json({
-      error: 'Please select a valid membership type.'
-    });
+    return res.status(400).json({ error: 'Invalid visitor ID.' });
   }
 
   try {
+    const [types] = await db.query(
+      'SELECT Price FROM MEMBERSHIP_TYPE WHERE MembershipType = ?',
+      [MembershipType]
+    );
+
+    if (types.length === 0) {
+      return res.status(400).json({ error: 'Invalid membership type.' });
+    }
+
+    const price = types[0].Price;
+
     const [visitors] = await db.query(
       'SELECT VisitorID FROM VISITOR WHERE VisitorID = ?',
       [visitorID]
     );
 
     if (visitors.length === 0) {
-      return res.status(404).json({
-        error: 'Visitor not found.'
-      });
+      return res.status(404).json({ error: 'Visitor not found.' });
     }
 
     const [existing] = await db.query(
-      `SELECT MembershipID
-       FROM MEMBERSHIP
+      `SELECT MembershipID FROM MEMBERSHIP
        WHERE VisitorID = ?
          AND (EndDate IS NULL OR EndDate >= CURDATE())
        LIMIT 1`,
@@ -2253,7 +2244,7 @@ app.post('/api/memberships', requireAuth, requireAdmin, async (req, res) => {
       `INSERT INTO MEMBERSHIP
        (MembershipID, VisitorID, MembershipType, StartDate, EndDate, Price)
        VALUES (?, ?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 1 YEAR), ?)`,
-      [membershipID, visitorID, MembershipType, prices[MembershipType]]
+      [membershipID, visitorID, MembershipType, price]
     );
 
     res.status(201).json({
@@ -2262,12 +2253,123 @@ app.post('/api/memberships', requireAuth, requireAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Error adding membership:', error.message);
-
-    res.status(500).json({
-      error: 'Failed to add membership.'
-    });
+    res.status(500).json({ error: 'Failed to add membership.' });
   }
 });
+
+app.get('/api/membership-types', async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      'SELECT MembershipType, Price FROM MEMBERSHIP_TYPE ORDER BY MembershipType'
+    );
+
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching membership types:', error.message);
+    res.status(500).json({ error: 'Failed to fetch membership types.' });
+  }
+});
+
+
+// Add a membership type
+app.post('/api/membership-types', requireAuth, requireAdmin, async (req, res) => {
+  const MembershipType = String(req.body.MembershipType || '').trim();
+  const Price = Number(req.body.Price);
+
+  if (!MembershipType || MembershipType.length > 30 ||
+      !Number.isFinite(Price) || Price < 0) {
+    return res.status(400).json({ error: 'Invalid membership type or price.' });
+  }
+
+  try {
+    const [existing] = await db.query(
+      'SELECT MembershipType FROM MEMBERSHIP_TYPE WHERE MembershipType = ?',
+      [MembershipType]
+    );
+
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'This membership type already exists.' });
+    }
+
+    await db.query(
+      'INSERT INTO MEMBERSHIP_TYPE (MembershipType, Price) VALUES (?, ?)',
+      [MembershipType, Price]
+    );
+
+    res.status(201).json({ message: 'Membership type added successfully.' });
+  } catch (error) {
+    console.error('Error adding membership type:', error.message);
+    res.status(500).json({ error: 'Failed to add membership type.' });
+  }
+});
+
+
+// Edit a membership type
+app.put('/api/membership-types/:type', requireAuth, requireAdmin, async (req, res) => {
+  const oldType = req.params.type;
+  const MembershipType = String(req.body.MembershipType || '').trim();
+  const Price = Number(req.body.Price);
+
+  if (!MembershipType || MembershipType.length > 30 ||
+      !Number.isFinite(Price) || Price < 0) {
+    return res.status(400).json({ error: 'Invalid membership type or price.' });
+  }
+
+  try {
+    const [existing] = await db.query(
+      'SELECT MembershipType FROM MEMBERSHIP_TYPE WHERE MembershipType = ?',
+      [oldType]
+    );
+
+    if (existing.length === 0) {
+      return res.status(404).json({ error: 'Membership type not found.' });
+    }
+
+    if (MembershipType !== oldType) {
+      const [duplicate] = await db.query(
+        'SELECT MembershipType FROM MEMBERSHIP_TYPE WHERE MembershipType = ?',
+        [MembershipType]
+      );
+
+      if (duplicate.length > 0) {
+        return res.status(409).json({ error: 'This membership type already exists.' });
+      }
+    }
+
+    await db.query(
+      `UPDATE MEMBERSHIP_TYPE
+       SET MembershipType = ?, Price = ?
+       WHERE MembershipType = ?`,
+      [MembershipType, Price, oldType]
+    );
+
+    res.json({ message: 'Membership type updated successfully.' });
+  } catch (error) {
+    console.error('Error updating membership type:', error.message);
+    res.status(500).json({ error: 'Failed to update membership type.' });
+  }
+});
+
+
+// Delete a membership type
+app.delete('/api/membership-types/:type', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const [result] = await db.query(
+      'DELETE FROM MEMBERSHIP_TYPE WHERE MembershipType = ?',
+      [req.params.type]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Membership type not found.' });
+    }
+
+    res.json({ message: 'Membership type deleted successfully.' });
+  } catch (error) {
+    console.error('Error deleting membership type:', error.message);
+    res.status(500).json({ error: 'Failed to delete membership type.' });
+  }
+});
+
 
 
 // Delete a membership (admin only)
@@ -2350,27 +2452,23 @@ app.post('/api/memberships/purchase', requireAuth, async (req, res) => {
     });
   }
 
-  const prices = {
-    Individual: 85.00,
-    Dual: 120.00,
-    Family: 150.00,
-    Student: 45.00,
-    Senior: 65.00
-  };
-
-  if (!Object.hasOwn(prices, MembershipType)) {
-    return res.status(400).json({
-      error: 'Invalid membership type.'
-    });
-  }
-
   try {
+    const [types] = await db.query(
+      'SELECT Price FROM MEMBERSHIP_TYPE WHERE MembershipType = ?',
+      [MembershipType]
+    );
+
+    if (types.length === 0) {
+      return res.status(400).json({ error: 'Invalid membership type.' });
+    }
+
+    const price = types[0].Price;
+
     const [existing] = await db.query(
-      `SELECT MembershipID
-      FROM MEMBERSHIP
-      WHERE VisitorID = ?
-        AND (EndDate IS NULL OR EndDate >= CURDATE())
-      LIMIT 1`,
+      `SELECT MembershipID FROM MEMBERSHIP
+       WHERE VisitorID = ?
+         AND (EndDate IS NULL OR EndDate >= CURDATE())
+       LIMIT 1`,
       [visitorID]
     );
 
@@ -2390,17 +2488,15 @@ app.post('/api/memberships/purchase', requireAuth, async (req, res) => {
       `INSERT INTO MEMBERSHIP
        (MembershipID, VisitorID, MembershipType, StartDate, EndDate, Price)
        VALUES (?, ?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 1 YEAR), ?)`,
-      [membershipID, visitorID, MembershipType, prices[MembershipType]]
+      [membershipID, visitorID, MembershipType, price]
     );
 
     res.status(201).json({
       message: 'Membership purchased successfully.'
     });
   } catch (error) {
-    console.error('Membership purchase error:', error.message);
-    res.status(500).json({
-      error: 'Could not purchase membership.'
-    });
+    console.error('Error purchasing membership:', error.message);
+    res.status(500).json({ error: 'Failed to purchase membership.' });
   }
 });
 

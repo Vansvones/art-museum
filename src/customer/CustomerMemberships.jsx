@@ -3,11 +3,29 @@ import { useEffect, useState } from 'react'
 
 function CustomerMemberships() {
   const [memberships, setMemberships] = useState([])
+  const [membershipTypes, setMembershipTypes] = useState([])
   const [loggedIn, setLoggedIn] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
+    async function loadMembershipTypes() {
+      try {
+        const response = await fetch(
+          '/api/membership-types',
+          { credentials: 'include' }
+        )
+
+        if (!response.ok) {
+          throw new Error('Unable to load membership prices.')
+        }
+
+        setMembershipTypes(await response.json())
+      } catch (error) {
+        setError(error.message)
+      }
+    }
+
     async function loadMemberships() {
       try {
         const response = await fetch(
@@ -33,36 +51,9 @@ function CustomerMemberships() {
       }
     }
 
+    loadMembershipTypes()
     loadMemberships()
   }, [])
-
-  const options = [
-    {
-      name: 'Individual',
-      price: 85,
-      benefits: 'Membership for one visitor.'
-    },
-    {
-      name: 'Dual',
-      price: 120,
-      benefits: 'Membership for two people.'
-    },
-    {
-      name: 'Family',
-      price: 150,
-      benefits: 'Membership for families.'
-    },
-    {
-      name: 'Student',
-      price: 45,
-      benefits: 'Discounted membership for students.'
-    },
-    {
-      name: 'Senior',
-      price: 65,
-      benefits: 'Membership option for senior visitors.'
-    }
-  ]
 
   const purchaseMembership = async (option) => {
     if (!loggedIn) {
@@ -150,14 +141,22 @@ function CustomerMemberships() {
         </p>
 
         <div className="customer-options">
-          {options.map((option) => (
-            <div className="customer-card" key={option.name}>
-              <h3>{option.name} Membership</h3>
-              <p>{option.benefits}</p>
+          {membershipTypes.map((option) => (
+            <div className="customer-card" key={option.MembershipType}>
+              <h3>{option.MembershipType} Membership</h3>
               <p>
-                <strong>Price:</strong> ${option.price.toFixed(2)}
+                {option.MembershipType === 'Individual' && 'Membership for one visitor.'}
+                {option.MembershipType === 'Dual' && 'Membership for two people.'}
+                {option.MembershipType === 'Family' && 'Membership for families.'}
+                {option.MembershipType === 'Student' && 'Discounted membership for students.'}
+                {option.MembershipType === 'Senior' && 'Membership option for senior visitors.'}
               </p>
-              <button onClick={() => purchaseMembership(option)}>
+              <p>
+                <strong>Price:</strong> ${Number(option.Price).toFixed(2)}
+              </p>
+              <button onClick={() => purchaseMembership({
+                name: option.MembershipType
+              })}>
                 Get Membership
               </button>
             </div>

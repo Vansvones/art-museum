@@ -3291,7 +3291,7 @@ app.delete('/api/items/:id', requireAuth, requireAdminOrClerk, async (req, res) 
 })
 
 // PDF Reports
-app.post('/api/report/:type/:subtype', requireAuth, requireAdmin, async (req, res) => {
+/* app.post('/api/report/:type/:subtype', requireAuth, requireAdmin, async (req, res) => {
   const { type, subtype } = req.params;
 
   const reports = {
@@ -3726,6 +3726,665 @@ app.post('/api/report/:type/:subtype', requireAuth, requireAdmin, async (req, re
       res.destroy(error);
     }
   }
+}); */
+
+
+async function getFinancialReport(startDate, endDate) {
+
+    // 1. Ticket sales
+    const [tickets] = await db.execute(`
+        SELECT
+            T.TicketID,
+            T.Type AS TicketType,
+            T.PurchaseDate,
+            T.VisitDate,
+            T.Price,
+            T.Status,
+            V.FirstName,
+            V.LastName,
+            E.Name AS Exhibition
+        FROM TICKET T
+        JOIN VISITOR V ON T.VisitorID = V.VisitorID
+        LEFT JOIN EXHIBITION E ON T.ExhibitionID = E.ExhibitionID
+        WHERE T.PurchaseDate >= ?
+          AND T.PurchaseDate < DATE_ADD(?, INTERVAL 1 DAY)
+          AND T.Status = 'Active'
+        ORDER BY T.PurchaseDate DESC
+    `, [startDate, endDate]);
+
+    const [[ticketSummary]] = await db.execute(`
+        SELECT
+            COUNT(*) AS TicketsSold,
+            COALESCE(SUM(Price), 0) AS TotalRevenue
+        FROM TICKET
+        WHERE PurchaseDate >= ?
+          AND PurchaseDate < DATE_ADD(?, INTERVAL 1 DAY)
+          AND Status = 'Active'
+    `, [startDate, endDate]);
+
+
+    // 2. Membership sales
+    const [memberships] = await db.execute(`
+        SELECT
+            M.MembershipID,
+            V.FirstName,
+            V.LastName,
+            M.MembershipType,
+            M.StartDate,
+            M.EndDate,
+            COALESCE(M.Price, MT.Price, 0) AS PaidPrice
+        FROM MEMBERSHIP M
+        JOIN VISITOR V ON M.VisitorID = V.VisitorID
+        LEFT JOIN MEMBERSHIP_TYPE MT
+            ON M.MembershipType = MT.MembershipType
+        WHERE M.StartDate >= ?
+          AND M.StartDate < DATE_ADD(?, INTERVAL 1 DAY)
+        ORDER BY M.StartDate DESC
+    `, [startDate, endDate]);
+
+    const [[membershipSummary]] = await db.execute(`
+        SELECT
+            COUNT(*) AS MembershipsSold,
+            COALESCE(SUM(COALESCE(M.Price, MT.Price, 0)), 0)
+                AS TotalRevenue
+        FROM MEMBERSHIP M
+        LEFT JOIN MEMBERSHIP_TYPE MT
+            ON M.MembershipType = MT.MembershipType
+        WHERE M.StartDate >= ?
+          AND M.StartDate < DATE_ADD(?, INTERVAL 1 DAY)
+    `, [startDate, endDate]);
+
+
+    // 3. Store sales
+    const [storeItems] = await db.execute(`
+        SELECT
+            ISold.ItemSoldID,
+            I.Name AS ItemName,
+            S.Name AS StoreName,
+            ISold.Quantity,
+            ISold.SoldPrice,
+            ISold.SaleDate,
+            (ISold.Quantity * ISold.SoldPrice) AS Total
+        FROM ITEM_SOLD ISold
+        JOIN ITEM I ON ISold.ItemID = I.ItemID
+        LEFT JOIN STORE S ON ISold.StoreID = S.StoreID
+        WHERE ISold.SaleDate >= ?
+          AND ISold.SaleDate < DATE_ADD(?, INTERVAL 1 DAY)
+        ORDER BY ISold.SaleDate DESC
+    `, [startDate, endDate]);
+
+    const [[storeRevenueSummary]] = await db.execute(`
+        SELECT
+            COUNT(*) AS Transactions,
+            COALESCE(SUM(Quantity), 0) AS ItemsSold,
+            COALESCE(SUM(Quantity * SoldPrice), 0) AS TotalRevenue
+        FROM ITEM_SOLD
+        WHERE SaleDate >= ?
+          AND SaleDate < DATE_ADD(?, INTERVAL 1 DAY)
+    `, [startDate, endDate]);
+
+
+    // 4. Parking sales
+    const [parking] = await db.execute(`
+        SELECT
+            PP.ParkingPassID,
+            V.FirstName,
+            V.LastName,
+            PL.Name AS ParkingLot,
+            PP.VisitDate,
+            PP.ArrivalTime,
+            PP.DepartureTime,
+            PP.TotalPrice
+        FROM PARKING_PASS PP
+        JOIN VISITOR V ON PP.VisitorID = V.VisitorID
+        JOIN PARKING_LOT PL ON PP.ParkingLotID = PL.ParkingLotID
+        WHERE PP.VisitDate >= ?
+          AND PP.VisitDate < DATE_ADD(?, INTERVAL 1 DAY)
+        ORDER BY PP.VisitDate DESC
+    `, [startDate, endDate]);
+
+    const [[parkingSummary]] = await db.execute(`
+        SELECT
+            COUNT(*) AS PassesSold,
+            COALESCE(SUM(TotalPrice), 0) AS TotalRevenue
+        FROM PARKING_PASS
+        WHERE VisitDate >= ?
+          AND VisitDate < DATE_ADD(?, INTERVAL 1 DAY)
+    `, [startDate, endDate]);
+
+
+    // 5. Calculate combined revenue
+    const totalRevenue =
+        Number(ticketSummary.TotalRevenue) +
+        Number(membershipSummary.TotalRevenue) +
+        Number(storeRevenueSummary.TotalRevenue) +
+        Number(parkingSummary.TotalRevenue);
+
+
+    // 6. Return the report
+    return {
+        title: 'Financial Performance Report',
+
+        sections: [
+            {
+                title: 'Overall Revenue',
+                rows: [{
+                    TicketRevenue: Number(ticketSummary.TotalRevenue),
+                    MembershipRevenue: Number(membershipSummary.TotalRevenue),
+                    StoreRevenue: Number(storeRevenueSummary.TotalRevenue),
+                    ParkingRevenue: Number(parkingSummary.TotalRevenue),
+                    CombinedRevenue: totalRevenue
+                }]
+            },
+            {
+                title: 'Ticket Sales',
+                rows: tickets,
+                summary:
+                    `Tickets Sold: ${ticketSummary.TicketsSold} | ` +
+                    `Revenue: $${Number(ticketSummary.TotalRevenue).toFixed(2)}`
+            },
+            {
+                title: 'Membership Sales',
+                rows: memberships,
+                summary:
+                    `Memberships Sold: ${membershipSummary.MembershipsSold} | ` +
+                    `Revenue: $${Number(membershipSummary.TotalRevenue).toFixed(2)}`
+            },
+            {
+                title: 'Store Sales',
+                rows: storeItems,
+                summary:
+                    `Sale Records: ${storeRevenueSummary.Transactions} | ` +
+                    `Items Sold: ${storeRevenueSummary.ItemsSold} | ` +
+                    `Revenue: $${Number(storeRevenueSummary.TotalRevenue).toFixed(2)}`
+            },
+            {
+                title: 'Parking Revenue',
+                rows: parking,
+                summary:
+                    `Passes Sold: ${parkingSummary.PassesSold} | ` +
+                    `Revenue: $${Number(parkingSummary.TotalRevenue).toFixed(2)}`
+            }
+        ]
+    };
+}
+
+
+async function getExhibitionReport(startDate, endDate) {
+
+    // 1. Exhibition information
+    const [exhibitions] = await db.execute(`
+        SELECT
+            E.ExhibitionID,
+            E.Name AS ExhibitionName,
+            E.ExhibitionType,
+            E.StartDate,
+            E.EndDate,
+            G.Name AS GalleryName,
+            G.Location AS GalleryLocation,
+            CONCAT(M.FirstName, ' ', M.LastName) AS ManagerName,
+            (
+                SELECT COUNT(*)
+                FROM EXHIBITION_ARTWORK EA
+                WHERE EA.ExhibitionID = E.ExhibitionID
+            ) AS ArtworkCount
+        FROM EXHIBITION E
+        LEFT JOIN GALLERY G ON E.GalleryID = G.GalleryID
+        LEFT JOIN EMPLOYEE M ON E.ManagerID = M.EmployeeID
+        WHERE E.StartDate <= ?
+          AND (E.EndDate IS NULL OR E.EndDate >= ?)
+        ORDER BY E.StartDate
+    `, [endDate, startDate]);
+
+
+    // 2. Exhibition ticket sales and attendance
+    const [exhibitionTickets] = await db.execute(`
+        SELECT
+            E.ExhibitionID,
+            E.Name AS ExhibitionName,
+            G.Name AS GalleryName,
+            COUNT(T.TicketID) AS TicketsSold,
+            COUNT(DISTINCT T.VisitorID) AS UniqueVisitors,
+            COALESCE(SUM(T.Price), 0) AS TotalRevenue
+        FROM EXHIBITION E
+        LEFT JOIN GALLERY G ON E.GalleryID = G.GalleryID
+        LEFT JOIN TICKET T
+            ON E.ExhibitionID = T.ExhibitionID
+            AND T.VisitDate >= ?
+            AND T.VisitDate < DATE_ADD(?, INTERVAL 1 DAY)
+            AND T.Status = 'Active'
+        WHERE E.StartDate <= ?
+          AND (E.EndDate IS NULL OR E.EndDate >= ?)
+        GROUP BY E.ExhibitionID, E.Name, G.Name
+        ORDER BY TicketsSold DESC
+    `, [startDate, endDate, endDate, startDate]);
+
+    const [[exhibitionTicketSummary]] = await db.execute(`
+        SELECT
+            COUNT(*) AS TicketsSold,
+            COALESCE(SUM(Price), 0) AS TotalSales
+        FROM TICKET
+        WHERE ExhibitionID IS NOT NULL
+          AND VisitDate >= ?
+          AND VisitDate < DATE_ADD(?, INTERVAL 1 DAY)
+          AND Status = 'Active'
+    `, [startDate, endDate]);
+
+
+    // 3. Artwork associated with exhibitions
+    const [exhibitionArtwork] = await db.execute(`
+        SELECT
+            E.ExhibitionID,
+            E.Name AS ExhibitionName,
+            A.ArtworkID,
+            A.Name AS ArtworkName,
+            A.Type AS ArtworkType,
+            A.Origin,
+            A.CreationDate
+        FROM EXHIBITION_ARTWORK EA
+        JOIN EXHIBITION E
+            ON EA.ExhibitionID = E.ExhibitionID
+        JOIN ARTWORK A
+            ON EA.ArtworkID = A.ArtworkID
+        WHERE E.StartDate <= ?
+          AND (E.EndDate IS NULL OR E.EndDate >= ?)
+        ORDER BY E.Name, A.Name
+    `, [endDate, startDate]);
+
+
+    // 4. Return the report
+    return {
+        title: 'Exhibition Performance Report',
+
+        sections: [
+            {
+                title: 'Exhibition Information',
+                rows: exhibitions
+            },
+            {
+                title: 'Exhibition Ticket Sales',
+                rows: exhibitionTickets,
+                summary:
+                    `Total Exhibition Tickets: ${exhibitionTicketSummary.TicketsSold} | ` +
+                    `Total Sales: $${Number(exhibitionTicketSummary.TotalSales).toFixed(2)}`
+            },
+            {
+                title: 'Artwork Associated With Exhibitions',
+                rows: exhibitionArtwork
+            }
+        ]
+    };
+}
+
+
+async function getOperationsReport(startDate, endDate) {
+
+    // 1. Visitor activity
+    const [visitors] = await db.execute(`
+        SELECT
+            V.VisitorID,
+            V.FirstName,
+            V.LastName,
+            V.Email,
+            COALESCE(T.TicketCount, 0) AS TicketsPurchased,
+            COALESCE(T.VisitDays, 0) AS VisitDays,
+            COALESCE(M.MembershipCount, 0) AS MembershipCount,
+            COALESCE(P.ParkingPassCount, 0) AS ParkingPassCount
+        FROM VISITOR V
+
+        LEFT JOIN (
+            SELECT
+                VisitorID,
+                COUNT(*) AS TicketCount,
+                COUNT(DISTINCT VisitDate) AS VisitDays
+            FROM TICKET
+            WHERE VisitDate >= ?
+              AND VisitDate < DATE_ADD(?, INTERVAL 1 DAY)
+              AND Status = 'Active'
+            GROUP BY VisitorID
+        ) T ON V.VisitorID = T.VisitorID
+
+        LEFT JOIN (
+            SELECT
+                VisitorID,
+                COUNT(*) AS MembershipCount
+            FROM MEMBERSHIP
+            WHERE StartDate >= ?
+              AND StartDate < DATE_ADD(?, INTERVAL 1 DAY)
+            GROUP BY VisitorID
+        ) M ON V.VisitorID = M.VisitorID
+
+        LEFT JOIN (
+            SELECT
+                VisitorID,
+                COUNT(*) AS ParkingPassCount
+            FROM PARKING_PASS
+            WHERE VisitDate >= ?
+              AND VisitDate < DATE_ADD(?, INTERVAL 1 DAY)
+            GROUP BY VisitorID
+        ) P ON V.VisitorID = P.VisitorID
+
+        WHERE T.VisitorID IS NOT NULL
+           OR M.VisitorID IS NOT NULL
+           OR P.VisitorID IS NOT NULL
+
+        ORDER BY V.LastName, V.FirstName
+    `, [
+        startDate, endDate,
+        startDate, endDate,
+        startDate, endDate
+    ]);
+
+
+    // 2. Membership activity
+    const [memberships] = await db.execute(`
+        SELECT
+            M.MembershipID,
+            V.FirstName,
+            V.LastName,
+            M.MembershipType,
+            MT.Price AS StandardPrice,
+            M.Price AS PaidPrice,
+            M.StartDate,
+            M.EndDate
+        FROM MEMBERSHIP M
+        JOIN VISITOR V ON M.VisitorID = V.VisitorID
+        LEFT JOIN MEMBERSHIP_TYPE MT
+            ON M.MembershipType = MT.MembershipType
+        WHERE M.StartDate >= ?
+          AND M.StartDate < DATE_ADD(?, INTERVAL 1 DAY)
+        ORDER BY M.StartDate DESC
+    `, [startDate, endDate]);
+
+
+    // 3. Employee and role information
+    const [employees] = await db.execute(`
+        SELECT
+            E.EmployeeID,
+            E.FirstName,
+            E.LastName,
+            E.Email,
+            E.Phone,
+            E.Salary,
+            R.RoleID,
+            R.Name AS RoleName,
+            ER.StartDate AS RoleStartDate,
+            ER.EndDate AS RoleEndDate
+        FROM EMPLOYEE E
+        JOIN EMPLOYEE_ROLE ER
+            ON E.EmployeeID = ER.EmployeeID
+        JOIN ROLE R
+            ON ER.RoleID = R.RoleID
+        WHERE ER.StartDate <= ?
+          AND (ER.EndDate IS NULL OR ER.EndDate >= ?)
+        ORDER BY R.Name, E.LastName
+    `, [endDate, startDate]);
+
+
+    // 4. Return the report
+    return {
+        title: 'Visitor and Staff Operations Report',
+
+        sections: [
+            {
+                title: 'Visitor Activity',
+                rows: visitors,
+                summary: `Visitors With Recorded Activity: ${visitors.length}`
+            },
+            {
+                title: 'Membership Activity',
+                rows: memberships,
+                summary: `Memberships Started: ${memberships.length}`
+            },
+            {
+                title: 'Employee and Role Information',
+                rows: employees,
+                summary: `Employee Role Assignments: ${employees.length}`
+            }
+        ]
+    };
+}
+
+
+function generateReportPDF(res, type, report) {
+    const doc = new PDFDocument({
+        margin: 40,
+        size: 'A4',
+        layout: 'landscape'
+    });
+
+    const filename = `${type}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${filename}"`
+    );
+
+    doc.pipe(res);
+
+    const pageWidth = doc.page.width - 80;
+    const tableX = 40;
+    const bottomMargin = 40;
+
+    let y = 85;
+
+    // Each report contains its own tables and summaries.
+    function drawTable(title, rows, summary = null) {
+        rows = rows || [];
+
+        doc.font('Helvetica-Bold')
+            .fontSize(13)
+            .fillColor('#3b3029')
+            .text(title, tableX, y);
+
+        y += 23;
+
+        if (summary) {
+            doc.font('Helvetica-Bold')
+                .fontSize(9)
+                .text(summary, tableX, y);
+
+            y += 20;
+        }
+
+        if (rows.length === 0) {
+            doc.font('Helvetica')
+                .fontSize(9)
+                .text('No records found.', tableX, y);
+
+            y += 25;
+            return;
+        }
+
+        const columns = Object.keys(rows[0]);
+
+        const weights = columns.map(() => 1);
+        const totalWeight = weights.reduce((a, b) => a + b, 0);
+        const widths = weights.map(
+            weight => pageWidth * weight / totalWeight
+        );
+
+        function drawHeader() {
+            let x = tableX;
+            let headerHeight = 0;
+
+            doc.font('Helvetica-Bold').fontSize(8);
+
+            columns.forEach((column, index) => {
+                const height = doc.heightOfString(String(column), {
+                    width: widths[index] - 10
+                });
+
+                headerHeight = Math.max(headerHeight, height);
+            });
+
+            headerHeight += 12;
+
+            doc.rect(tableX, y, pageWidth, headerHeight)
+                .fill('#e8ded3');
+
+            columns.forEach((column, index) => {
+                doc.fillColor('#3b3029')
+                    .text(String(column), x + 5, y + 6, {
+                        width: widths[index] - 10,
+                        height: headerHeight - 10
+                    });
+
+                x += widths[index];
+            });
+
+            y += headerHeight;
+        }
+
+        if (y + 40 > doc.page.height - bottomMargin) {
+            doc.addPage();
+            y = 40;
+        }
+
+        drawHeader();
+
+        rows.forEach((row, rowIndex) => {
+            const values = columns.map(column => {
+                const value = row[column];
+
+                if (value instanceof Date) {
+                    return value.toISOString().split('T')[0];
+                }
+
+                return value === null || value === undefined
+                    ? ''
+                    : String(value);
+            });
+
+            let rowHeight = 0;
+
+            values.forEach((value, index) => {
+                const height = doc.heightOfString(value, {
+                    width: widths[index] - 10,
+                    lineGap: 2
+                });
+
+                rowHeight = Math.max(rowHeight, height);
+            });
+
+            rowHeight += 12;
+
+            if (y + rowHeight > doc.page.height - bottomMargin) {
+                doc.addPage();
+                y = 40;
+                drawHeader();
+            }
+
+            if (rowIndex % 2 === 0) {
+                doc.rect(tableX, y, pageWidth, rowHeight)
+                    .fill('#f7f3ef');
+            }
+
+            let x = tableX;
+
+            values.forEach((value, index) => {
+                doc.fillColor('#333333')
+                    .font('Helvetica')
+                    .fontSize(8)
+                    .text(value, x + 5, y + 6, {
+                        width: widths[index] - 10,
+                        lineGap: 2
+                    });
+
+                x += widths[index];
+            });
+
+            doc.moveTo(tableX, y + rowHeight)
+                .lineTo(tableX + pageWidth, y + rowHeight)
+                .strokeColor('#dddddd')
+                .stroke();
+
+            y += rowHeight;
+        });
+
+        y += 25;
+    }
+
+    // Report title and date range
+    doc.font('Helvetica-Bold')
+        .fontSize(18)
+        .fillColor('#3b3029')
+        .text(report.title, tableX, 30, {
+            width: pageWidth,
+            align: 'center'
+        });
+
+    doc.font('Helvetica')
+        .fontSize(9)
+        .text(`Generated: ${new Date().toLocaleString()}`, tableX, 58);
+
+    doc.text(
+        `Date Range: ${report.startDate} to ${report.endDate}`,
+        tableX,
+        72
+    );
+
+    // Draw each table belonging to this report
+    report.sections.forEach(section => {
+        drawTable(
+            section.title,
+            section.rows,
+            section.summary
+        );
+    });
+
+    doc.end();
+}
+
+app.post('/api/report/:type', requireAuth, requireAdmin, async (req, res) => {
+    const { type } = req.params;
+    const { startDate, endDate } = req.body;
+
+    try {
+        if (!['Financial', 'Exhibitions', 'Operations'].includes(type)) {
+            return res.status(400).json({
+                error: 'Invalid report type'
+            });
+        }
+
+        if (!startDate || !endDate || startDate > endDate) {
+            return res.status(400).json({
+                error: 'Invalid date range'
+            });
+        }
+
+        let reportData;
+
+        switch (type) {
+            case 'Financial':
+                reportData = await getFinancialReport(startDate, endDate);
+                break;
+
+            case 'Exhibitions':
+                reportData = await getExhibitionReport(startDate, endDate);
+                break;
+
+            case 'Operations':
+                reportData = await getOperationsReport(startDate, endDate);
+                break;
+        }
+
+        generateReportPDF(res, type, {
+            ...reportData,
+            startDate,
+            endDate
+        });
+
+    } catch (error) {
+        console.error('Report generation error:', error);
+
+        if (!res.headersSent) {
+            res.status(500).json({
+                error: 'Failed to generate report'
+            });
+        }
+    }
 });
 
 // Start the server

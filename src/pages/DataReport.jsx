@@ -1,41 +1,29 @@
+
 import { useState } from 'react'
 
 function DataReport() {
-    const emptyForm = {
+    const [form, setForm] = useState({
         ReportType: '',
-        Subtype: ''
-    }
+        StartDate: '',
+        EndDate: ''
+    })
 
-    const [form, setForm] = useState(emptyForm)
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
 
     const reports = {
-        Information: [
-            { value: 'Exhibitions', label: 'Exhibitions' },
-            { value: 'Memberships', label: 'Memberships' },
-            { value: 'Stores', label: 'Stores' },
-            { value: 'Employees', label: 'Employees' }
-        ],
-        Sold: [
-            { value: 'Tickets', label: 'Tickets' },
-            { value: 'ExhibitionTickets', label: 'Exhibition Tickets' },
-            { value: 'StoreItems', label: 'Store Items' }
-        ],
-        Profit: [
-            { value: 'Parking', label: 'Parking Passes' },
-            { value: 'StoreItems', label: 'Store Items' }
-        ]
+        Financial: 'Financial Performance',
+        Exhibitions: 'Exhibition Performance',
+        Operations: 'Visitor and Staff'
     }
 
     function handleChange(event) {
         const { name, value } = event.target
 
-        setForm({
-            ...form,
-            [name]: value,
-            ...(name === 'ReportType' ? { Subtype: '' } : {})
-        })
+        setForm(prev => ({
+            ...prev,
+            [name]: value
+        }))
 
         setError('')
     }
@@ -44,11 +32,18 @@ function DataReport() {
         event.preventDefault()
         setError('')
 
-        if (!reports[form.ReportType] ||
-            !reports[form.ReportType].some(
-                report => report.value === form.Subtype
-            )) {
-            setError('Invalid report type or subtype.')
+        if (!reports[form.ReportType]) {
+            setError('Please select a report.')
+            return
+        }
+
+        if (!form.StartDate || !form.EndDate) {
+            setError('Please select both dates.')
+            return
+        }
+
+        if (form.StartDate > form.EndDate) {
+            setError('The start date cannot be after the end date.')
             return
         }
 
@@ -56,10 +51,17 @@ function DataReport() {
 
         try {
             const res = await fetch(
-                `/api/report/${form.ReportType}/${form.Subtype}`,
+                `/api/report/${form.ReportType}`,
                 {
                     method: 'POST',
-                    credentials: 'include'
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        startDate: form.StartDate,
+                        endDate: form.EndDate
+                    })
                 }
             )
 
@@ -82,13 +84,16 @@ function DataReport() {
 
             const link = document.createElement('a')
             link.href = url
-            link.download = `${form.ReportType}_${form.Subtype}.pdf`
+            link.download =
+                `${form.ReportType}_${form.StartDate}_to_${form.EndDate}.pdf`
 
             document.body.appendChild(link)
             link.click()
             document.body.removeChild(link)
 
-            window.URL.revokeObjectURL(url)
+            window.setTimeout(() => {
+                window.URL.revokeObjectURL(url)
+            }, 1000)
 
         } catch (error) {
             setError(error.message || 'Failed to generate report.')
@@ -99,65 +104,67 @@ function DataReport() {
 
     return (
         <div className="galleries-page">
-            <h2>Data Reports</h2>
+            <h2>Museum Management Reports</h2>
 
-            {error && <p className="error-message">{error}</p>}
+            {error && (
+                <p className="error-message">{error}</p>
+            )}
 
             <form className="ticket-form" onSubmit={getReport}>
                 <div className="ticket-form-grid">
 
                     <div className="ticket-field">
                         <label>Report Type</label>
+
                         <select
                             name="ReportType"
                             value={form.ReportType}
                             onChange={handleChange}
                             required
                         >
-                            <option value="">Select a report type</option>
+                            <option value="">
+                                Select a report
+                            </option>
 
-                            {Object.keys(reports).map(report => (
-                                <option key={report} value={report}>
-                                    {report}
-                                </option>
-                            ))}
+                            {Object.entries(reports).map(
+                                ([value, label]) => (
+                                    <option key={value} value={value}>
+                                        {label}
+                                    </option>
+                                )
+                            )}
                         </select>
                     </div>
 
-                    {form.ReportType && (
-                        <div className="ticket-field">
-                            <label>
-                                {form.ReportType === 'Information'
-                                    ? 'Type of Information'
-                                    : form.ReportType === 'Sold'
-                                        ? 'Type of Product'
-                                        : 'Type of Sales'}
-                            </label>
+                    <div className="ticket-field">
+                        <label>Start Date</label>
 
-                            <select
-                                name="Subtype"
-                                value={form.Subtype}
-                                onChange={handleChange}
-                                required
-                            >
-                                <option value="">Select an attribute</option>
+                        <input
+                            type="date"
+                            name="StartDate"
+                            value={form.StartDate}
+                            onChange={handleChange}
+                            required
+                        />
+                    </div>
 
-                                {reports[form.ReportType].map(report => (
-                                    <option
-                                        key={report.value}
-                                        value={report.value}
-                                    >
-                                        {report.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
+                    <div className="ticket-field">
+                        <label>End Date</label>
+
+                        <input
+                            type="date"
+                            name="EndDate"
+                            value={form.EndDate}
+                            onChange={handleChange}
+                            min={form.StartDate || undefined}
+                            required
+                        />
+                    </div>
 
                 </div>
 
                 <button type="submit" disabled={loading}>
-                    {loading ? 'Generating...' : 'Generate Report'}
+                    {loading ? 'Generating Report...' : 'Generate PDF Report'}
                 </button>
             </form>
         </div>

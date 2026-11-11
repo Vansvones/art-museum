@@ -86,7 +86,6 @@ return (
   <section className="my-tickets-page">
     <div className="my-tickets-header">
       <div>
-        <p className="my-tickets-subtitle">YOUR VISITS</p>
         <h2>My Tickets</h2>
         <p className="my-tickets-description">
           View your tickets and manage your upcoming visits.

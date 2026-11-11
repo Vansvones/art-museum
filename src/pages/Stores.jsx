@@ -7,7 +7,7 @@ function Stores() {
   const [storeItems, setStoreItems] = useState([])
   const [inventoryError, setInventoryError] = useState('')
   const [inventoryLoading, setInventoryLoading] = useState(false)
-  const [newStockCount, setNewStockCount] = useState('0')
+  const [newStockCount, setNewStockCount] = useState('')
   const [editingInventoryId, setEditingInventoryId] = useState(null)
   const [editingStockCount, setEditingStockCount] = useState('')
   const [items, setItems] = useState([])
@@ -100,6 +100,15 @@ async function loadStoreItems(storeID) {
 async function addItemToStore(event) {
   event.preventDefault()
 
+  if(
+    newStockCount.trim() === '' ||
+    !Number.isInteger(Number(newStockCount)) ||
+    Number(newStockCount) < 0
+  ) {
+    setInventoryError('Please enter a valid stock count (0 or greater).')
+    return
+  }
+
   try {
     const response = await fetch(
       `/api/stores/${selectedStore.StoreID}/items`,
@@ -125,7 +134,7 @@ async function addItemToStore(event) {
 
     setNewItemName('')
     setNewItemPrice('')
-    setNewStockCount('0')
+    setNewStockCount('')
     setInventoryError('')
 
     await loadStoreItems(selectedStore.StoreID)

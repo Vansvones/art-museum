@@ -106,12 +106,14 @@ export default function CustomerGalleries() {
                   </span>
                   {' - '}
                   <span>
-                    {new Date(exhibition.EndDate).toLocaleDateString('en-US', {
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric',
-                      timeZone: 'UTC'
-                    })}
+                    {exhibition.EndDate
+                      ? new Date(exhibition.EndDate).toLocaleDateString('en-US', {
+                          month: 'long',
+                          day: 'numeric',
+                          year: 'numeric',
+                          timeZone: 'UTC'
+                        })
+                      : 'Ongoing'}
                   </span>
                 </p>
               </article>

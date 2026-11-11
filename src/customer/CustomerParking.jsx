@@ -108,7 +108,17 @@ function CustomerParking() {
   return (
     <div className="customer-page">
       <section className="parking-page">
-        <h2>Museum Parking</h2>
+        <div className="parking-page-header">
+          <h2>Museum Parking</h2>
+
+          <button
+            type="button"
+            className="parking-passes-button"
+            onClick={() => navigate('/customer/my-parking-passes')}
+          >
+            My Parking Passes
+          </button>
+        </div>
 
         {purchase && (
           <div className="customer-card">

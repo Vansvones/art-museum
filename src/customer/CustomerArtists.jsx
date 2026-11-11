@@ -78,12 +78,12 @@ export default function CustomerArtists() {
               : 'Unknown'}
           </p>
 
-          <p>
-            <strong>Died:</strong>{' '}
-            {artist.DeathDate
-              ? new Date(artist.DeathDate).getUTCFullYear()
-              : 'Living / Unknown'}
-          </p>
+          {artist.DeathDate && (
+            <p>
+              <strong>Died:</strong>{' '}
+              {new Date(artist.DeathDate).getUTCFullYear()}
+            </p>
+          )}
         </article>
       ))}
     </div>
@@ -92,5 +92,4 @@ export default function CustomerArtists() {
       <p>{search ? 'No artists match your search.' : 'No artists found.'}</p>
     )}
   </section>
-)
-}
+)}

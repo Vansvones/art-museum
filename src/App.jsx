@@ -14,6 +14,7 @@ import CustomerStores from './customer/CustomerStores'
 import CustomerMemberships from './customer/CustomerMemberships'
 import CustomerParking from './customer/CustomerParking'
 import CustomerParkingCheckout from './customer/CustomerParkingCheckout'
+import CustomerParkingPasses from './customer/CustomerParkingPasses'
 import CustomerTickets from './customer/CustomerTickets'
 import CustomerCheckout from './customer/CustomerCheckout'
 import CustomerArtistArtworks from './customer/CustomerArtistArtworks'
@@ -189,7 +190,7 @@ function VisitorLayout( {onLogout, user, authChecked} ) {
   return (
     <>
       <nav className="visitor-nav">
-        <NavLink to="/">Main Home</NavLink>
+      <NavLink to="/">Main Home</NavLink>
       <NavLink to="/customer" end>Home</NavLink>
       <NavLink to="/customer/artworks">Artworks</NavLink>
       <NavLink to="/customer/artists">Artists</NavLink>
@@ -216,23 +217,15 @@ function VisitorLayout( {onLogout, user, authChecked} ) {
         <Route path="/artists/:artistId" element={<CustomerArtistArtworks />} />
         <Route path="/galleries" element={<CustomerGalleries />} />
         <Route path="/exhibitions" element={<CustomerExhibitions />} />
-        <Route
-          path="/tickets"
-          element={<CustomerTickets user={user} authChecked={authChecked} />}
-        />
+        <Route path="/tickets" element={<CustomerTickets user={user} authChecked={authChecked} />} />
         <Route path="/my-tickets" element={<MyTickets />} />
         <Route path="/checkout" element={<CustomerCheckout />} />
         <Route path="/stores" element={<CustomerStores />} />
         <Route path="/memberships" element={<CustomerMemberships />} />
         <Route path="/parking" element={<CustomerParking />} />
-        <Route
-          path="/parking-checkout"
-          element={<CustomerParkingCheckout />}
-        />
-        <Route
-          path="/account"
-          element={<CustomerAccount onLogout={onLogout} />}
-        />
+        <Route path="/my-parking-passes" element={<CustomerParkingPasses />} />
+        <Route path="/parking-checkout" element={<CustomerParkingCheckout />} />
+        <Route path="/account" element={<CustomerAccount onLogout={onLogout} />} />
       </Routes>
     </>
   )

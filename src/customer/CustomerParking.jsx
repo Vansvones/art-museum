@@ -10,6 +10,7 @@ function CustomerParking() {
   const [parkingLots, setParkingLots] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [loggedIn, setLoggedIn] = useState(false)
 
   const [parkingLotID, setParkingLotID] = useState('')
   const [visitDate, setVisitDate] = useState('')
@@ -44,6 +45,22 @@ function CustomerParking() {
     loadParkingLots()
   }, [])
 
+    useEffect(() => {
+    async function checkLogin() {
+      try {
+        const response = await fetch('/api/auth/me', {
+          credentials: 'include'
+        })
+
+        setLoggedIn(response.ok)
+      } catch (error) {
+        setLoggedIn(false)
+      }
+    }
+
+    checkLogin()
+  }, [])
+
   function formatTime(time) {
     const [hour, minute] = time.split(':').map(Number)
     const period = hour >= 12 ? 'PM' : 'AM'
@@ -55,6 +72,11 @@ function CustomerParking() {
   function handleContinue(event) {
     event.preventDefault()
     setError('')
+
+    if (!loggedIn) {
+      navigate('/login')
+      return
+    }
 
     if (
       !parkingLotID ||

@@ -2656,6 +2656,71 @@ app.get('/api/parking-passes', requireAuth, requireAdmin, async (req, res) => {
 })
 
 
+app.get('/api/my-parking-passes', requireAuth, async (req, res) => {
+  try {
+    if (req.user.role !== 'VISITOR' || !req.user.VisitorID) {
+      return res.status(403).json({
+        error: 'Only visitors can view their parking passes.'
+      })
+    }
+
+    const visitorID = req.user.VisitorID
+
+    const [passes] = await db.query(
+      `SELECT
+        pp.ParkingPassID,
+        pp.VisitDate,
+        pp.ArrivalTime,
+        pp.DepartureTime,
+        pp.TotalPrice,
+        pl.Name AS ParkingLotName
+      FROM PARKING_PASS pp
+      JOIN PARKING_LOT pl
+        ON pp.ParkingLotID = pl.ParkingLotID
+      WHERE pp.VisitorID = ?
+      ORDER BY pp.VisitDate DESC`,
+      [visitorID]
+    )
+
+    res.json(passes)
+  } catch (error) {
+    console.error('Error loading parking passes:', error)
+    res.status(500).json({
+      error: 'Failed to load parking passes.'
+    })
+  }
+})
+
+app.delete('/api/my-parking-passes/:id', requireAuth, async (req, res) => {
+  try {
+    if (req.user.role !== 'VISITOR' || !req.user.VisitorID) {
+      return res.status(403).json({
+        error: 'Only visitors can cancel their parking passes.'
+      })
+    }
+
+    const [result] = await db.query(
+      `DELETE FROM PARKING_PASS
+       WHERE ParkingPassID = ?
+       AND VisitorID = ?`,
+      [req.params.id, req.user.VisitorID]
+    )
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        error: 'Parking pass not found.'
+      })
+    }
+
+    res.json({ message: 'Parking pass cancelled successfully.' })
+  } catch (error) {
+    console.error('Error cancelling parking pass:', error)
+    res.status(500).json({
+      error: 'Failed to cancel parking pass.'
+    })
+  }
+})
+
 // Add a parking pass (admin only)
 app.post('/api/parking-passes', requireAuth, requireAdmin, async (req, res) => {
   try {

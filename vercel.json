@@ -10,8 +10,7 @@
       "use": "@vercel/node",
       "config": {
         "includeFiles": [
-          "server/node_modules/pdfkit/js/data/**",
-          "node_modules/pdfkit/js/data/**"
+          "server/node_modules/pdfkit/**/*"
         ]
       }
     }

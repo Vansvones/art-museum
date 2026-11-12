@@ -67,6 +67,14 @@ export default function CustomerExhibitions() {
               }
             }}
           >
+            <img
+              src={`/ExhibitionImages/${exhibition.ExhibitionID}.jpeg`}
+              alt={exhibition.Name}
+              className="exhibition-cover-image"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+              }}
+            />
             <h5 className="visitor-exhibition-title">
               {exhibition.Name}
             </h5>

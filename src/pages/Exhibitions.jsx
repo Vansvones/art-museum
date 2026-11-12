@@ -445,6 +445,15 @@ async function removeArtworkFromExhibition(artworkID) {
               key={exhibition.ExhibitionID}
               onClick={() => openExhibitionArtworks(exhibition)}
             >
+              <img
+                src={`/ExhibitionImages/${exhibition.ExhibitionID}.jpeg`}
+                alt={exhibition.Name}
+                className="exhibition-cover-image"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'
+                }}
+              />
+
               <h4>{exhibition.Name}</h4>
               <p>Click to manage exhibition artworks</p>
               <p><strong>ID:</strong> {exhibition.ExhibitionID}</p>

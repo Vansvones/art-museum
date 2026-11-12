@@ -2950,6 +2950,339 @@ app.get('/api/stores/:id/items', async (req, res) => {
 })
 
 
+app.post('/api/store-checkout', requireAuth, async (req, res) => {
+  const connection = await db.getConnection()
+
+  try {
+    if (req.user.role !== 'VISITOR' || !req.user.VisitorID) {
+      return res.status(403).json({
+        error: 'A visitor account is required to make a purchase.'
+      })
+    }
+
+    const items = req.body.items
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        error: 'Your shopping cart is empty.'
+      })
+    }
+
+    for (const item of items) {
+      if (
+        !Number.isInteger(Number(item.ItemID)) ||
+        Number(item.ItemID) <= 0 ||
+        !Number.isInteger(Number(item.StoreID)) ||
+        Number(item.StoreID) <= 0 ||
+        !Number.isInteger(Number(item.Quantity)) ||
+        Number(item.Quantity) <= 0
+      ) {
+        return res.status(400).json({
+          error: 'Invalid item or quantity.'
+        })
+      }
+    }
+
+    await connection.beginTransaction()
+
+    let totalAmount = 0
+    const verifiedItems = []
+
+    for (const item of items) {
+      const itemID = Number(item.ItemID)
+      const storeID = Number(item.StoreID)
+      const quantity = Number(item.Quantity)
+
+      const [rows] = await connection.query(
+        `SELECT I.Price, SI.StockCount
+         FROM STORE_ITEM SI
+         JOIN ITEM I ON SI.ItemID = I.ItemID
+         WHERE SI.StoreID = ? AND SI.ItemID = ?
+         FOR UPDATE`,
+        [storeID, itemID]
+      )
+
+      if (rows.length === 0) {
+        throw new Error('An item is no longer available.')
+      }
+
+      const price = Number(rows[0].Price)
+      const stock = Number(rows[0].StockCount)
+
+      if (!Number.isFinite(price) || price < 0) {
+        throw new Error('An item has an invalid price.')
+      }
+
+      if (stock < quantity) {
+        throw new Error('There is not enough stock for one of your items.')
+      }
+
+      totalAmount += price * quantity
+
+      verifiedItems.push({
+        ItemID: itemID,
+        StoreID: storeID,
+        Quantity: quantity,
+        Price: price
+      })
+    }
+
+    totalAmount = Number(totalAmount.toFixed(2))
+
+    const shipping = req.body.shippingAddress
+
+if (
+  !shipping ||
+  !shipping.firstName?.trim() ||
+  !shipping.lastName?.trim() ||
+  !shipping.address?.trim() ||
+  !shipping.city?.trim() ||
+  !shipping.state?.trim() ||
+  !/^\d{5}$/.test(String(shipping.zip || ''))
+) {
+  throw new Error('Please provide a valid shipping address.')
+}
+
+const [order] = await connection.query(
+  `INSERT INTO STORE_ORDER (
+    VisitorID,
+    TotalAmount,
+    ShippingFirstName,
+    ShippingLastName,
+    ShippingAddress,
+    ShippingCity,
+    ShippingState,
+    ShippingZip
+  )
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  [
+    req.user.VisitorID,
+    totalAmount,
+    shipping.firstName.trim(),
+    shipping.lastName.trim(),
+    shipping.address.trim(),
+    shipping.city.trim(),
+    shipping.state.trim(),
+    shipping.zip
+  ]
+)
+
+    const orderID = order.insertId
+
+    for (const item of verifiedItems) {
+      await connection.query(
+        `INSERT INTO ITEM_SOLD
+         (ItemID, Quantity, SoldPrice, StoreID, OrderID)
+         VALUES (?, ?, ?, ?, ?)`,
+        [
+          item.ItemID,
+          item.Quantity,
+          item.Price,
+          item.StoreID,
+          orderID
+        ]
+      )
+
+      await connection.query(
+        `UPDATE STORE_ITEM
+         SET StockCount = StockCount - ?
+         WHERE StoreID = ? AND ItemID = ?`,
+        [item.Quantity, item.StoreID, item.ItemID]
+      )
+    }
+
+    await connection.commit()
+
+    res.status(201).json({
+      message: 'Purchase completed successfully.',
+      OrderID: orderID,
+      TotalAmount: totalAmount
+    })
+  } catch (error) {
+    await connection.rollback()
+
+    console.error('Store checkout error:', error.message)
+
+    res.status(400).json({
+      error: error.message || 'Failed to complete purchase.'
+    })
+  } finally {
+    connection.release()
+  }
+})
+
+
+app.get('/api/my-store-orders', requireAuth, async (req, res) => {
+  try {
+    if (req.user.role !== 'VISITOR' || !req.user.VisitorID) {
+      return res.status(403).json({
+        error: 'A visitor account is required.'
+      })
+    }
+
+    const [orders] = await db.query(
+      `SELECT
+          SO.OrderID,
+          SO.OrderDate,
+          SO.TotalAmount,
+          SO.OrderStatus,
+          SO.ShippingFirstName,
+          SO.ShippingLastName,
+          SO.ShippingAddress,
+          SO.ShippingCity,
+          SO.ShippingState,
+          SO.ShippingZip,
+          ISOLD.ItemSoldID,
+          ISOLD.ItemID,
+          I.Name AS ItemName,
+          ISOLD.Quantity,
+          ISOLD.SoldPrice,
+          ISOLD.StoreID,
+          S.Name AS StoreName
+       FROM STORE_ORDER SO
+       LEFT JOIN ITEM_SOLD ISOLD
+         ON SO.OrderID = ISOLD.OrderID
+       LEFT JOIN ITEM I
+         ON ISOLD.ItemID = I.ItemID
+       LEFT JOIN STORE S
+         ON ISOLD.StoreID = S.StoreID
+       WHERE SO.VisitorID = ?
+       ORDER BY SO.OrderDate DESC, SO.OrderID DESC`,
+      [req.user.VisitorID]
+    )
+
+    res.json(orders)
+  } catch (error) {
+    console.error('Store purchase history error:', error)
+
+    res.status(500).json({
+      error: 'Failed to load store purchases.'
+    })
+  }
+})
+
+app.get('/api/admin/store-orders', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const [orders] = await db.query(
+      `SELECT
+        SO.OrderID,
+        SO.OrderDate,
+        SO.TotalAmount,
+        SO.OrderStatus,
+        SO.ShippingFirstName,
+        SO.ShippingLastName,
+        SO.ShippingAddress,
+        SO.ShippingCity,
+        SO.ShippingState,
+        SO.ShippingZip,
+        V.VisitorID,
+        ISOLD.ItemSoldID,
+        ISOLD.ItemID,
+        I.Name AS ItemName,
+        ISOLD.Quantity,
+        ISOLD.SoldPrice,
+        ISOLD.StoreID,
+        S.Name AS StoreName
+      FROM STORE_ORDER SO
+      JOIN VISITOR V ON SO.VisitorID = V.VisitorID
+      LEFT JOIN ITEM_SOLD ISOLD ON SO.OrderID = ISOLD.OrderID
+      LEFT JOIN ITEM I ON ISOLD.ItemID = I.ItemID
+      LEFT JOIN STORE S ON ISOLD.StoreID = S.StoreID
+      ORDER BY SO.OrderDate DESC, SO.OrderID DESC`
+    )
+
+    res.json(orders)
+  } catch (error) {
+    console.error('Admin store orders error:', error)
+
+    res.status(500).json({
+      error: 'Failed to load store orders.'
+    })
+  }
+})
+
+app.put('/api/admin/store-orders/:orderID/status', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const orderID = Number(req.params.orderID)
+    const { status } = req.body
+
+    const allowedStatuses = [
+      'Pending',
+      'Processing',
+      'Shipped',
+      'Delivered',
+      'Cancelled'
+    ]
+
+    if (!Number.isInteger(orderID) || orderID <= 0) {
+      return res.status(400).json({
+        error: 'Invalid order ID.'
+      })
+    }
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        error: 'Invalid order status.'
+      })
+    }
+
+    const [result] = await db.query(
+      `UPDATE STORE_ORDER
+       SET OrderStatus = ?
+       WHERE OrderID = ?`,
+      [status, orderID]
+    )
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        error: 'Order not found.'
+      })
+    }
+
+    res.json({
+      message: 'Order status updated successfully.'
+    })
+  } catch (error) {
+    console.error('Update store order status error:', error)
+
+    res.status(500).json({
+      error: 'Failed to update order status.'
+    })
+  }
+})
+
+app.delete('/api/admin/store-orders/:orderID', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { orderID } = req.params
+
+    // Delete the purchased items associated with this order first.
+    await db.query(
+      'DELETE FROM ITEM_SOLD WHERE OrderID = ?',
+      [orderID]
+    )
+
+    // Then delete the order.
+    const [result] = await db.query(
+      'DELETE FROM STORE_ORDER WHERE OrderID = ?',
+      [orderID]
+    )
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        error: 'Order not found.'
+      })
+    }
+
+    res.json({
+      message: 'Order deleted successfully.'
+    })
+  } catch (error) {
+    console.error('Delete store order error:', error)
+    res.status(500).json({
+      error: 'Failed to delete order.'
+    })
+  }
+})
 
 app.post('/api/stores/:id/items', requireAuth, requireAdminOrClerk, async (req, res) => {
   const connection = await db.getConnection()

@@ -11,6 +11,8 @@ import CustomerArtists from './customer/CustomerArtists'
 import CustomerGalleries from './customer/CustomerGalleries'
 import CustomerExhibitions from './customer/CustomerExhibitions'
 import CustomerStores from './customer/CustomerStores'
+import CustomerStoreCheckout from './customer/CustomerStoreCheckout'
+import CustomerStorePurchases from './customer/CustomerStorePurchases'
 import CustomerMemberships from './customer/CustomerMemberships'
 import CustomerParking from './customer/CustomerParking'
 import CustomerParkingCheckout from './customer/CustomerParkingCheckout'
@@ -33,6 +35,7 @@ import RequireAdmin from './auth/RequireAdmin';
 import RequireClerk from './auth/RequireClerk';
 import RequireCurator from './auth/RequireCurator'
 import Stores from './pages/Stores'
+import AdminStoreOrders from './pages/AdminStoreOrders'
 import DataReport from './pages/DataReport'
 import Visitors from './pages/Visitors'
 import './App.css'
@@ -221,6 +224,8 @@ function VisitorLayout( {onLogout, user, authChecked} ) {
         <Route path="/my-tickets" element={<MyTickets />} />
         <Route path="/checkout" element={<CustomerCheckout />} />
         <Route path="/stores" element={<CustomerStores />} />
+        <Route path="store-checkout" element={<CustomerStoreCheckout />} />
+        <Route path="/store-purchases" element={<CustomerStorePurchases />} />
         <Route path="/memberships" element={<CustomerMemberships />} />
         <Route path="/parking" element={<CustomerParking />} />
         <Route path="/my-parking-passes" element={<CustomerParkingPasses />} />
@@ -257,6 +262,7 @@ function AdminLayout({user, onLogout}) {
       <NavLink to="/admin/galleries">Manage Galleries</NavLink>
       <NavLink to="/admin/exhibitions">Manage Exhibitions</NavLink>
       <NavLink to="/admin/stores">Manage Stores</NavLink>
+      <NavLink to="/admin/store-orders">Manage Store Orders</NavLink>
       <NavLink to="/admin/employees">Manage Employees</NavLink>
       <NavLink to="/admin/visitors">Manage Visitors</NavLink>
       <NavLink to="/admin/tickets">Manage Tickets</NavLink>
@@ -276,6 +282,7 @@ function AdminLayout({user, onLogout}) {
         <Route path="/artists" element={<Artists />} />
         <Route path="/galleries" element={<Galleries />} />
         <Route path="/stores" element={<Stores />} />
+        <Route path="/store-orders" element={<AdminStoreOrders />} />
         <Route path="/exhibitions" element={<Exhibitions />} />
         <Route path="/employees" element={<Employees />} />
         <Route path="/visitors" element={<Visitors />} />

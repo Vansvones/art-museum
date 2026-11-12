@@ -91,6 +91,14 @@ export default function CustomerGalleries() {
                 className="visitor-option"
                 key={exhibition.ExhibitionID}
               >
+                <img
+                  src={`/ExhibitionImages/${exhibition.ExhibitionID}.jpeg`}
+                  alt={exhibition.Name}
+                  className="exhibition-cover-image"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                  }}
+                />
                 <h3>{exhibition.Name}</h3>
 
                 <p>{exhibition.Description}</p>

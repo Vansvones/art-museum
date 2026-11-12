@@ -562,11 +562,20 @@ function Galleries({ user }) {
 
 						<div className="gallery-list">
 								{exhibitions.map(exhibition => (
-										<div
-												className="gallery-card"
-												key={exhibition.ExhibitionID}
-										>
-												<h4>{exhibition.Name}</h4>
+									<div
+											className="gallery-card"
+											key={exhibition.ExhibitionID}
+									>
+											<img
+													src={`/ExhibitionImages/${exhibition.ExhibitionID}.jpeg`}
+													alt={exhibition.Name}
+													className="exhibition-cover-image"
+													onError={(e) => {
+															e.currentTarget.style.display = 'none'
+													}}
+											/>
+
+											<h4>{exhibition.Name}</h4>
 												<p>
 														<strong>Description:</strong>{' '}
 														{exhibition.Description || 'None'}

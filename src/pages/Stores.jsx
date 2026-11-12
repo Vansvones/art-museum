@@ -704,7 +704,15 @@ async function deleteItem(id) {
             <div className="gallery-list">
               {storeItems.map((item) => (
                 <div className="gallery-card" key={item.ItemID}>
-                  <h4>{item.Name}</h4>
+                <img
+                  src={`/ItemsImages/${item.ItemID}.jpeg`}
+                  alt={item.Name}
+                  className="store-item-image"
+                  onError={(event) => {
+                    event.currentTarget.style.display = 'none'
+                  }}
+                />
+                <h4>{item.Name}</h4>
 
                   <p>
                     <strong>Item ID:</strong> {item.ItemID}

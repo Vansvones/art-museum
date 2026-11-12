@@ -3161,7 +3161,7 @@ app.get('/api/my-store-orders', requireAuth, async (req, res) => {
   }
 })
 
-app.get('/api/admin/store-orders', requireAuth, requireAdmin, async (req, res) => {
+app.get('/api/admin/store-orders', requireAuth, requireAdminOrClerk, async (req, res) => {
   try {
     const [orders] = await db.query(
       `SELECT
@@ -3201,7 +3201,7 @@ app.get('/api/admin/store-orders', requireAuth, requireAdmin, async (req, res) =
   }
 })
 
-app.put('/api/admin/store-orders/:orderID/status', requireAuth, requireAdmin, async (req, res) => {
+app.put('/api/admin/store-orders/:orderID/status', requireAuth, requireAdminOrClerk, async (req, res) => {
   try {
     const orderID = Number(req.params.orderID)
     const { status } = req.body

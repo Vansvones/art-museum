@@ -31,6 +31,14 @@ function ClerkDashboard() {
             <button type="button">Manage Items</button>
           </Link>
         </div>
+
+        <div className="admin-card">
+          <h3>Manage Store Orders</h3>
+          <p>Review store orders and update their status.</p>
+          <Link to="/clerk/store-orders">
+            <button type="button">Manage Store Orders</button>
+          </Link>
+        </div>
       </div>
     </div>
   )

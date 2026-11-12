@@ -268,6 +268,7 @@ function AdminLayout({user, onLogout}) {
       <NavLink to="/admin/tickets">Manage Tickets</NavLink>
       <NavLink to="/admin/memberships">Manage Memberships</NavLink>
       <NavLink to="/admin/parking-passes">Manage Parking Passes</NavLink>
+      <NavLink to="/admin/data-report">Reports</NavLink>
 
       {user && (
         <button type="button" onClick={handleLogout}>
@@ -282,7 +283,7 @@ function AdminLayout({user, onLogout}) {
         <Route path="/artists" element={<Artists />} />
         <Route path="/galleries" element={<Galleries />} />
         <Route path="/stores" element={<Stores />} />
-        <Route path="/store-orders" element={<AdminStoreOrders />} />
+        <Route path="/store-orders" element={<AdminStoreOrders isAdmin={true} />} />
         <Route path="/exhibitions" element={<Exhibitions />} />
         <Route path="/employees" element={<Employees />} />
         <Route path="/visitors" element={<Visitors />} />
@@ -318,6 +319,7 @@ function ClerkLayout({ user, onLogout }) {
         <NavLink to="/clerk" end>Dashboard</NavLink>
         <NavLink to="/clerk/tickets">Manage Tickets</NavLink>
         <NavLink to="/clerk/stores">Manage Stores</NavLink>
+        <NavLink to="/clerk/store-orders">Manage Store Orders</NavLink>
 
         {user && (
           <button type="button" onClick={handleLogout}>
@@ -331,6 +333,7 @@ function ClerkLayout({ user, onLogout }) {
         <Route path="/tickets" element={<Tickets />} />
         <Route path="/stores" element={<Stores />} />
         <Route path="/items" element={<Stores />} />
+        <Route path="/store-orders" element={<AdminStoreOrders isAdmin={false} />} />
       </Routes>
     </>
   )

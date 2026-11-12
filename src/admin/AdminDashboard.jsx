@@ -48,6 +48,14 @@ function AdminDashboard() {
         </div>
 
         <div className="admin-card">
+          <h3>Manage Store Orders</h3>
+          <p>Review store purchases, view order details, and update order statuses.</p>
+          <Link to="/admin/store-orders">
+            <button type="button">Manage Store Orders</button>
+          </Link>
+        </div>
+
+        <div className="admin-card">
           <h3>Manage Employees</h3>
           <p>View and manage museum employee records.</p>
           <Link to="/admin/employees">

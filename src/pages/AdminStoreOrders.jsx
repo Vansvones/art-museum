@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-function AdminStoreOrders() {
+function AdminStoreOrders({ isAdmin }) {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -176,27 +176,29 @@ function AdminStoreOrders() {
       <h2>Store Order Management</h2>
       <p>View and manage museum store purchases.</p>
 
-      <div className="store-order-stats">
-        <div className="store-order-stat">
-          <h3>{groupedOrders.length}</h3>
-          <p>Total Orders</p>
-        </div>
+      {isAdmin && (
+        <div className="store-order-stats">
+          <div className="store-order-stat">
+            <h3>{groupedOrders.length}</h3>
+            <p>Total Orders</p>
+          </div>
 
-        <div className="store-order-stat">
-          <h3>{pendingOrders}</h3>
-          <p>Pending Orders</p>
-        </div>
+          <div className="store-order-stat">
+            <h3>{pendingOrders}</h3>
+            <p>Pending Orders</p>
+          </div>
 
-        <div className="store-order-stat">
-          <h3>{shippedOrders}</h3>
-          <p>Shipped Orders</p>
-        </div>
+          <div className="store-order-stat">
+            <h3>{shippedOrders}</h3>
+            <p>Shipped Orders</p>
+          </div>
 
-        <div className="store-order-stat">
-          <h3>${totalRevenue.toFixed(2)}</h3>
-          <p>Total Revenue</p>
+          <div className="store-order-stat">
+            <h3>${totalRevenue.toFixed(2)}</h3>
+            <p>Total Revenue</p>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="store-order-controls">
         <input
@@ -266,19 +268,31 @@ function AdminStoreOrders() {
             {updating === order.OrderID && <span>Updating...</span>}
           </div>
 
-          <button
-            type="button"
-            className="store-order-details-button"
-            onClick={() =>
-              setSelectedOrder(
-                selectedOrder === order.OrderID ? null : order.OrderID
-              )
-            }
-          >
-            {selectedOrder === order.OrderID
-              ? 'Hide Details'
-              : 'View Details'}
-          </button>
+          <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
+            <button
+              type="button"
+              className="store-order-details-button"
+              onClick={() =>
+                setSelectedOrder(
+                  selectedOrder === order.OrderID ? null : order.OrderID
+                )
+              }
+            >
+              {selectedOrder === order.OrderID
+                ? 'Hide Details'
+                : 'View Details'}
+            </button>
+
+            {isAdmin && (
+              <button
+                type="button"
+                className="store-order-details-button"
+                onClick={() => deleteOrder(order.OrderID)}
+              >
+                Delete Order
+              </button>
+            )}
+          </div>
 
           {selectedOrder === order.OrderID && (
             <div className="store-admin-order-details">

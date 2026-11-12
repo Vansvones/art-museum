@@ -266,29 +266,19 @@ function AdminStoreOrders() {
             {updating === order.OrderID && <span>Updating...</span>}
           </div>
 
-          <div className="store-admin-order-actions">
-            <button
-                type="button"
-                className="store-order-details-button"
-                onClick={() =>
-                setSelectedOrder(
-                    selectedOrder === order.OrderID ? null : order.OrderID
-                )
-                }
-            >
-                {selectedOrder === order.OrderID
-                ? 'Hide Details'
-                : 'View Details'}
-            </button>
-
-            <button
-                type="button"
-                className="store-order-delete-button"
-                onClick={() => deleteOrder(order.OrderID)}
-            >
-                Delete Order
-            </button>
-            </div>
+          <button
+            type="button"
+            className="store-order-details-button"
+            onClick={() =>
+              setSelectedOrder(
+                selectedOrder === order.OrderID ? null : order.OrderID
+              )
+            }
+          >
+            {selectedOrder === order.OrderID
+              ? 'Hide Details'
+              : 'View Details'}
+          </button>
 
           {selectedOrder === order.OrderID && (
             <div className="store-admin-order-details">
@@ -310,10 +300,21 @@ function AdminStoreOrders() {
 
               {order.items.map((item) => (
                 <div className="store-admin-order-item" key={item.ItemSoldID}>
-                  <div>
-                    <strong>{item.ItemName}</strong>
-                    <p>{item.StoreName || 'Not available'}</p>
-                    <p>Quantity: {item.Quantity}</p>
+                  <div className="store-admin-order-item-info">
+                    <img
+                      src={`/ItemsImages/${item.ItemID}.jpeg`}
+                      alt={item.ItemName}
+                      className="store-item-image"
+                      onError={(event) => {
+                        event.currentTarget.style.display = 'none'
+                      }}
+                    />
+
+                    <div>
+                      <strong>{item.ItemName}</strong>
+                      <p>{item.StoreName || 'Not available'}</p>
+                      <p>Quantity: {item.Quantity}</p>
+                    </div>
                   </div>
 
                   <div>

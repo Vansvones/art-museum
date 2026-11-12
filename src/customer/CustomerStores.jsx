@@ -89,6 +89,7 @@ function CustomerStores() {
         ...cart,
         {
           ItemID: item.ItemID,
+          Image: `/ItemsImages/${item.ItemID}.jpeg`,
           StoreID: selectedStore.StoreID,
           StoreName: selectedStore.Name,
           Name: item.Name,
@@ -198,9 +199,18 @@ function CustomerStores() {
             <p>No items found in the store.</p>
           )}
 
-          <div className="gallery-list">
+          <div className="gallery-list store-item-list">
             {items.map((item) => (
-              <div className="gallery-card" key={item.ItemID}>
+              <div className="gallery-card store-item-card" key={item.ItemID}>
+                <img
+                  src={`/ItemsImages/${item.ItemID}.jpeg`}
+                  alt={item.Name}
+                  className="store-item-image"
+                  onError={(event) => {
+                    event.currentTarget.style.display = 'none'
+                  }}
+                />
+
                 <h3>{item.Name}</h3>
 
                 <p>
@@ -256,6 +266,15 @@ function CustomerStores() {
                   className="gallery-card"
                   key={`${item.StoreID}-${item.ItemID}`}
                 >
+                  <img
+                    src={item.Image}
+                    alt={item.Name}
+                    className="store-item-image"
+                    onError={(event) => {
+                      event.currentTarget.style.display = 'none'
+                    }}
+                  />
+
                   <h3>{item.Name}</h3>
                   <p><strong>Store:</strong> {item.StoreName}</p>
                   <p>

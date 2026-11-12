@@ -109,6 +109,15 @@ function CustomerStorePurchases() {
                 className="gallery-card"
                 key={item.ItemSoldID}
               >
+                <img
+                  src={`/ItemsImages/${item.ItemID}.jpeg`}
+                  alt={item.ItemName}
+                  className="store-item-image"
+                  onError={(event) => {
+                    event.currentTarget.style.display = 'none'
+                  }}
+                />
+
                 <h3>{item.ItemName}</h3>
 
                 <p>

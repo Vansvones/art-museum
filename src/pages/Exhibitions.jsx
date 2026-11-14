@@ -12,6 +12,7 @@ function Exhibitions() {
   const [managers, setManagers] = useState([])
   const [selectedArtworkID, setSelectedArtworkID] = useState('')
   const artworksPanelRef = useRef(null)
+  const errorRef = useRef(null)
 
   const [form, setForm] = useState({
     Name: '',
@@ -45,6 +46,15 @@ function Exhibitions() {
     loadGalleries()
     loadManagers()
   }, [])
+
+  useEffect(() => {
+    if (error && errorRef.current) {
+      errorRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      })
+    }
+  }, [error])
 
   async function loadGalleries() {
     try {
@@ -317,7 +327,7 @@ async function removeArtworkFromExhibition(artworkID) {
         <p>Browse and manage the museum's exhibitions.</p>
     </div>
         {error && (
-          <div className="error-message">
+          <div className="error-message" ref={errorRef}>
             <strong>Unable to save exhibition</strong>
             <p>{error}</p>
           </div>

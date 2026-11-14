@@ -827,10 +827,11 @@ app.post(
         });
       }
 
-      console.error('Error adding exhibition artwork:', error.message);
-      res.status(500).json({
-        error: 'Failed to add artwork to exhibition.'
-      });
+      return handleDatabaseError(
+        res,
+        error,
+        'Failed to add artwork to exhibition.'
+      );
     }
   }
 );

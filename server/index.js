@@ -1615,8 +1615,8 @@ app.put('/api/employees/:id', requireAuth, requireAdmin, async (req, res) => {
     res.json({ message: 'Employee updated successfully' })
   } catch (error) {
     console.error('Error updating employee:', error.message)
-    res.status(500).json({
-      error: 'Failed to update employee. Check that the supervisor exists.'
+    res.status(400).json({
+      error: error.sqlMessage || error.message || 'Failed to update employee'
     })
   }
 })

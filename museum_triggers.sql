@@ -166,8 +166,9 @@ BEGIN
     END IF;
 END$$
 
-
+--=====================================================================================
 -- Prevent a ticket's visit date from being after the associated exhibition's end date.
+--=====================================================================================
 DROP TRIGGER IF EXISTS VERIFY_EXHIBITION_INSERT$$
 CREATE TRIGGER VERIFY_EXHIBITION_INSERT
 BEFORE INSERT ON TICKET

@@ -8,6 +8,8 @@ function DataReport() {
         EndDate: ''
     })
 
+    const [report, setReport] = useState(null)
+
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
 
@@ -28,9 +30,11 @@ function DataReport() {
         setError('')
     }
 
+    
     async function getReport(event) {
         event.preventDefault()
         setError('')
+        setReport(null)
 
         if (!reports[form.ReportType]) {
             setError('Please select a report.')
@@ -51,7 +55,7 @@ function DataReport() {
 
         try {
             const res = await fetch(
-                `/api/report/${form.ReportType}`,
+                `/api/report/${form.ReportType}?format=json`,
                 {
                     method: 'POST',
                     credentials: 'include',
@@ -65,35 +69,15 @@ function DataReport() {
                 }
             )
 
+            const data = await res.json()
+
             if (!res.ok) {
-                const message = await res.text()
-                let errorMessage = 'Failed to generate report.'
-
-                try {
-                    const errorData = JSON.parse(message)
-                    errorMessage = errorData.error || errorMessage
-                } catch {
-                    errorMessage = message || errorMessage
-                }
-
-                throw new Error(errorMessage)
+                throw new Error(
+                    data.error || 'Failed to generate report.'
+                )
             }
 
-            const blob = await res.blob()
-            const url = window.URL.createObjectURL(blob)
-
-            const link = document.createElement('a')
-            link.href = url
-            link.download =
-                `${form.ReportType}_${form.StartDate}_to_${form.EndDate}.pdf`
-
-            document.body.appendChild(link)
-            link.click()
-            document.body.removeChild(link)
-
-            window.setTimeout(() => {
-                window.URL.revokeObjectURL(url)
-            }, 1000)
+            setReport(data)
 
         } catch (error) {
             setError(error.message || 'Failed to generate report.')
@@ -101,6 +85,7 @@ function DataReport() {
             setLoading(false)
         }
     }
+
 
     return (
         <div className="galleries-page">
@@ -164,9 +149,78 @@ function DataReport() {
                 </div>
 
                 <button type="submit" disabled={loading}>
-                    {loading ? 'Generating Report...' : 'Generate PDF Report'}
+                    {loading ? 'Generating Report...' : 'Generate Report'}
                 </button>
             </form>
+
+
+        {report && (
+            <div className="report-results">
+            
+                <div className="report-header">
+                    <h2>{report.title}</h2>
+        
+                    <p>
+                        Reporting Period: {report.startDate} to {report.endDate}
+                    </p>
+                </div>
+        
+                {report.sections.map((section, index) => {
+                
+                    const columns = section.rows.length > 0
+                        ? Object.keys(section.rows[0])
+                        : []
+                
+                    return (
+                        <div className="report-section" key={index}>
+                        
+                            <h3>{section.title}</h3>
+                    
+                            {section.summary && (
+                                <p className="report-summary">
+                                    {section.summary}
+                                </p>
+                            )}
+
+                            {section.rows.length === 0 ? (
+                                <p>No records found for this period.</p>
+                            ) : (
+                                <div className="report-table-container">
+                                
+                                    <table className="report-table">
+                            
+                                        <thead>
+                                            <tr>
+                                                {columns.map(column => (
+                                                    <th key={column}>
+                                                        {column}
+                                                    </th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                            
+                                        <tbody>
+                                            {section.rows.map((row, rowIndex) => (
+                                                <tr key={rowIndex}>
+                                                    {columns.map(column => (
+                                                        <td key={column}>
+                                                            {row[column] === null ||
+                                                             row[column] === undefined
+                                                                ? '—'
+                                                                : String(row[column])}
+                                                        </td>
+                                                    ))}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    )
+                })}
+            </div>
+        )}
         </div>
     )
 }

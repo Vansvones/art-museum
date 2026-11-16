@@ -1,8 +1,145 @@
+USE defaultdb;
+
 DELIMITER $$
---======================================================================
--- Prevent an exhibition's end date from being before its start date.
---======================================================================
+
+--========================================
+-- 1. Circular supervisor relationships
+--========================================
+DROP TRIGGER IF EXISTS trg_prevent_supervisor_cycle_insert$$
+
+CREATE TRIGGER trg_prevent_supervisor_cycle_insert
+BEFORE INSERT ON EMPLOYEE
+FOR EACH ROW
+BEGIN
+    IF NEW.SupervisorID = NEW.EmployeeID THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Employee cannot supervise themselves';
+    END IF;
+END$$
+
+DROP TRIGGER IF EXISTS trg_prevent_supervisor_cycle$$
+
+CREATE TRIGGER trg_prevent_supervisor_cycle
+BEFORE UPDATE ON EMPLOYEE
+FOR EACH ROW
+BEGIN
+    DECLARE current_supervisor INT;
+
+    IF NEW.SupervisorID IS NOT NULL THEN
+
+        IF NEW.SupervisorID = NEW.EmployeeID THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Employee cannot supervise themselves';
+        END IF;
+
+        SET current_supervisor = NEW.SupervisorID;
+
+        WHILE current_supervisor IS NOT NULL DO
+
+            IF current_supervisor = NEW.EmployeeID THEN
+                SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'Circular supervisor relationship detected';
+            END IF;
+
+            SELECT SupervisorID
+            INTO current_supervisor
+            FROM EMPLOYEE
+            WHERE EmployeeID = current_supervisor;
+
+        END WHILE;
+
+    END IF;
+END$$
+
+--=======================================
+-- 2. Artwork exhibition date overlaps
+--=======================================
+DROP TRIGGER IF EXISTS trg_artwork_exhibition_overlap_insert$$
+
+CREATE TRIGGER trg_artwork_exhibition_overlap_insert
+BEFORE INSERT ON EXHIBITION_ARTWORK
+FOR EACH ROW
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM EXHIBITION_ARTWORK EA
+        JOIN EXHIBITION E
+            ON EA.ExhibitionID = E.ExhibitionID
+        JOIN EXHIBITION NEW_E
+            ON NEW_E.ExhibitionID = NEW.ExhibitionID
+        WHERE EA.ArtworkID = NEW.ArtworkID
+          AND EA.ExhibitionID <> NEW.ExhibitionID
+          AND COALESCE(NEW_E.StartDate, '1000-01-01')
+              <= COALESCE(E.EndDate, '9999-12-31')
+          AND COALESCE(E.StartDate, '1000-01-01')
+              <= COALESCE(NEW_E.EndDate, '9999-12-31')
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT =
+            'Artwork is already assigned to another exhibition with overlapping dates';
+    END IF;
+END$$
+
+DROP TRIGGER IF EXISTS trg_artwork_exhibition_overlap_update$$
+
+CREATE TRIGGER trg_artwork_exhibition_overlap_update
+BEFORE UPDATE ON EXHIBITION_ARTWORK
+FOR EACH ROW
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM EXHIBITION_ARTWORK EA
+        JOIN EXHIBITION E
+            ON EA.ExhibitionID = E.ExhibitionID
+        JOIN EXHIBITION NEW_E
+            ON NEW_E.ExhibitionID = NEW.ExhibitionID
+        WHERE EA.ArtworkID = NEW.ArtworkID
+          AND EA.ExhibitionID <> NEW.ExhibitionID
+          AND NOT (
+              EA.ArtworkID = OLD.ArtworkID
+              AND EA.ExhibitionID = OLD.ExhibitionID
+          )
+          AND COALESCE(NEW_E.StartDate, '1000-01-01')
+              <= COALESCE(E.EndDate, '9999-12-31')
+          AND COALESCE(E.StartDate, '1000-01-01')
+              <= COALESCE(NEW_E.EndDate, '9999-12-31')
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT =
+            'Artwork is already assigned to another exhibition with overlapping dates';
+    END IF;
+END$$
+
+DROP TRIGGER IF EXISTS trg_artwork_exhibition_overlap_dates$$
+
+CREATE TRIGGER trg_artwork_exhibition_overlap_dates
+BEFORE UPDATE ON EXHIBITION
+FOR EACH ROW
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM EXHIBITION_ARTWORK EA1
+        JOIN EXHIBITION_ARTWORK EA2
+            ON EA1.ArtworkID = EA2.ArtworkID
+           AND EA1.ExhibitionID <> EA2.ExhibitionID
+        JOIN EXHIBITION E2
+            ON EA2.ExhibitionID = E2.ExhibitionID
+        WHERE EA1.ExhibitionID = OLD.ExhibitionID
+          AND COALESCE(NEW.StartDate, '1000-01-01')
+              <= COALESCE(E2.EndDate, '9999-12-31')
+          AND COALESCE(E2.StartDate, '1000-01-01')
+              <= COALESCE(NEW.EndDate, '9999-12-31')
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT =
+            'Cannot change exhibition dates because an assigned artwork would overlap with another exhibition';
+    END IF;
+END$$
+
+-- 3. Remaining database triggers
+
 DROP TRIGGER IF EXISTS check_exhibition_dates$$
+
 CREATE TRIGGER check_exhibition_dates
 BEFORE INSERT ON EXHIBITION
 FOR EACH ROW
@@ -15,9 +152,8 @@ BEGIN
     END IF;
 END$$
 
-
--- Prevent an exhibition's end date from being before its start date when updated.
 DROP TRIGGER IF EXISTS check_exhibition_dates_update$$
+
 CREATE TRIGGER check_exhibition_dates_update
 BEFORE UPDATE ON EXHIBITION
 FOR EACH ROW
@@ -25,14 +161,15 @@ BEGIN
     IF NEW.StartDate IS NOT NULL
        AND NEW.EndDate IS NOT NULL
        AND NEW.EndDate < NEW.StartDate THEN
+
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Exhibition end date cannot be before start date';
+
     END IF;
 END$$
 
-
--- Prevent a membership's end date from being before its start date.
 DROP TRIGGER IF EXISTS check_membership_dates$$
+
 CREATE TRIGGER check_membership_dates
 BEFORE INSERT ON MEMBERSHIP
 FOR EACH ROW
@@ -44,9 +181,8 @@ BEGIN
     END IF;
 END$$
 
-
--- Prevent a membership from having a negative price.
 DROP TRIGGER IF EXISTS check_membership_price$$
+
 CREATE TRIGGER check_membership_price
 BEFORE INSERT ON MEMBERSHIP
 FOR EACH ROW
@@ -57,9 +193,8 @@ BEGIN
     END IF;
 END$$
 
-
--- Prevent a membership's end date from being before its start date when updated.
 DROP TRIGGER IF EXISTS check_membership_dates_update$$
+
 CREATE TRIGGER check_membership_dates_update
 BEFORE UPDATE ON MEMBERSHIP
 FOR EACH ROW
@@ -71,9 +206,8 @@ BEGIN
     END IF;
 END$$
 
-
--- Prevent a membership from having a negative price when updated.
 DROP TRIGGER IF EXISTS check_membership_price_update$$
+
 CREATE TRIGGER check_membership_price_update
 BEFORE UPDATE ON MEMBERSHIP
 FOR EACH ROW
@@ -84,9 +218,8 @@ BEGIN
     END IF;
 END$$
 
-
--- Prevent a parking lot's capacity from being reduced below its current number of assigned passes.
 DROP TRIGGER IF EXISTS check_parking_lot_capacity_update$$
+
 CREATE TRIGGER check_parking_lot_capacity_update
 BEFORE UPDATE ON PARKING_LOT
 FOR EACH ROW
@@ -104,9 +237,8 @@ BEGIN
     END IF;
 END$$
 
-
--- Prevent new parking passes from exceeding a parking lot's capacity.
 DROP TRIGGER IF EXISTS PARKING_FULL$$
+
 CREATE TRIGGER PARKING_FULL
 BEFORE INSERT ON PARKING_PASS
 FOR EACH ROW
@@ -128,9 +260,8 @@ BEGIN
     END IF;
 END$$
 
-
--- Prevent parking pass updates from exceeding the destination parking lot's capacity.
 DROP TRIGGER IF EXISTS parking_full_update$$
+
 CREATE TRIGGER parking_full_update
 BEFORE UPDATE ON PARKING_PASS
 FOR EACH ROW
@@ -153,9 +284,8 @@ BEGIN
     END IF;
 END$$
 
-
--- Prevent tickets from having a negative price when inserted.
 DROP TRIGGER IF EXISTS check_ticket_price$$
+
 CREATE TRIGGER check_ticket_price
 BEFORE INSERT ON TICKET
 FOR EACH ROW
@@ -166,10 +296,8 @@ BEGIN
     END IF;
 END$$
 
---=====================================================================================
--- Prevent a ticket's visit date from being after the associated exhibition's end date.
---=====================================================================================
 DROP TRIGGER IF EXISTS VERIFY_EXHIBITION_INSERT$$
+
 CREATE TRIGGER VERIFY_EXHIBITION_INSERT
 BEFORE INSERT ON TICKET
 FOR EACH ROW
@@ -179,19 +307,17 @@ BEGIN
     IF NEW.ExhibitionID IS NOT NULL THEN
         SELECT EndDate INTO exhibition_end_date
         FROM EXHIBITION
-        WHERE EXHIBITION.ExhibitionID = NEW.ExhibitionID;
+        WHERE EXHIBITION.ExhibitionID = New.ExhibitionID;
 
-        IF exhibition_end_date IS NOT NULL
-           AND NEW.VisitDate > exhibition_end_date THEN
+        IF exhibition_end_date IS NOT NULL AND NEW.VisitDate > exhibition_end_date THEN
             SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'Insertion Rejected: Visit date is past Exhibition End Date';
         END IF;
     END IF;
 END$$
 
-
--- Limit each exhibition to a maximum of 50 tickets per visit date when inserted.
 DROP TRIGGER IF EXISTS trg_exhibition_daily_capacity$$
+
 CREATE TRIGGER trg_exhibition_daily_capacity
 BEFORE INSERT ON TICKET
 FOR EACH ROW
@@ -210,9 +336,8 @@ BEGIN
     END IF;
 END$$
 
-
--- Prevent a ticket's visit date from being before its purchase date.
 DROP TRIGGER IF EXISTS check_ticket_visit_after_purchase$$
+
 CREATE TRIGGER check_ticket_visit_after_purchase
 BEFORE INSERT ON TICKET
 FOR EACH ROW
@@ -220,14 +345,41 @@ BEGIN
     IF NEW.VisitDate IS NOT NULL
        AND NEW.PurchaseDate IS NOT NULL
        AND NEW.VisitDate < NEW.PurchaseDate THEN
+
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Visit date cannot be before purchase date';
+
     END IF;
 END$$
 
+DROP TRIGGER IF EXISTS trg_validate_single_exhibition_ticket$$
 
--- Prevent an updated ticket's visit date from being after the associated exhibition's end date.
+CREATE TRIGGER trg_validate_single_exhibition_ticket
+BEFORE INSERT ON TICKET
+FOR EACH ROW
+BEGIN
+    DECLARE admission_count INT;
+
+    IF NEW.Type = 'Single Exhibition' THEN
+
+        SELECT COUNT(*)
+        INTO admission_count
+        FROM TICKET
+        WHERE TicketID = NEW.GeneralAdmissionTicketID
+          AND Type = 'General Admission'
+          AND VisitorID = NEW.VisitorID;
+
+        IF admission_count = 0 THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT =
+            'Single Exhibition ticket must reference a General Admission ticket for the same visitor';
+        END IF;
+
+    END IF;
+END$$
+
 DROP TRIGGER IF EXISTS VERIFY_EXHIBITION_UPDATE$$
+
 CREATE TRIGGER VERIFY_EXHIBITION_UPDATE
 BEFORE UPDATE ON TICKET
 FOR EACH ROW
@@ -237,19 +389,17 @@ BEGIN
     IF NEW.ExhibitionID IS NOT NULL THEN
         SELECT EndDate INTO exhibition_end_date
         FROM EXHIBITION
-        WHERE EXHIBITION.ExhibitionID = NEW.ExhibitionID;
+        WHERE EXHIBITION.ExhibitionID = New.ExhibitionID;
 
-        IF exhibition_end_date IS NOT NULL
-           AND NEW.VisitDate > exhibition_end_date THEN
+        IF exhibition_end_date IS NOT NULL AND NEW.VisitDate > exhibition_end_date THEN
             SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'Insertion Rejected: Visit date is past Exhibition End Date';
         END IF;
     END IF;
 END$$
 
-
--- Prevent an updated ticket from having a negative price.
 DROP TRIGGER IF EXISTS check_ticket_price_update$$
+
 CREATE TRIGGER check_ticket_price_update
 BEFORE UPDATE ON TICKET
 FOR EACH ROW
@@ -260,9 +410,8 @@ BEGIN
     END IF;
 END$$
 
-
--- Prevent an updated ticket's visit date from being before its purchase date.
 DROP TRIGGER IF EXISTS check_ticket_visit_after_purchase_update$$
+
 CREATE TRIGGER check_ticket_visit_after_purchase_update
 BEFORE UPDATE ON TICKET
 FOR EACH ROW
@@ -270,15 +419,15 @@ BEGIN
     IF NEW.VisitDate IS NOT NULL
        AND NEW.PurchaseDate IS NOT NULL
        AND NEW.VisitDate < NEW.PurchaseDate THEN
+
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Visit date cannot be before purchase date';
+
     END IF;
 END$$
 
---==============================================================================================
--- Limit each exhibition to a maximum of 50 tickets per visit date when a ticket is updated.
---==============================================================================================
 DROP TRIGGER IF EXISTS trg_exhibition_daily_capacity_update$$
+
 CREATE TRIGGER trg_exhibition_daily_capacity_update
 BEFORE UPDATE ON TICKET
 FOR EACH ROW
@@ -304,3 +453,4 @@ BEGIN
 END$$
 
 DELIMITER ;
+

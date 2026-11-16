@@ -8,6 +8,9 @@ function DataReport() {
         EndDate: ''
     })
 
+    const [report, setReport] = useState(null)
+    const [expandedSections, setExpandedSections] = useState({})
+
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
 
@@ -28,9 +31,68 @@ function DataReport() {
         setError('')
     }
 
+    function toggleSection(index) {
+        setExpandedSections(prev => ({
+            ...prev,
+            [index]: !prev[index]
+        }))
+    }
+    
+    async function downloadPDF() {
+        if (!report) return;
+
+        setError('');
+        setLoading(true);
+
+        try {
+            const res = await fetch(
+                `/api/report/${form.ReportType}`,
+                {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        startDate: form.StartDate,
+                        endDate: form.EndDate
+                    })
+                }
+            );
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(
+                    data.error || 'Failed to download PDF.'
+                );
+            }
+
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.download =
+                `${form.ReportType}_${form.StartDate}_to_${form.EndDate}.pdf`;
+
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            window.URL.revokeObjectURL(url);
+
+        } catch (error) {
+            setError(error.message || 'Failed to download PDF.');
+        } finally {
+            setLoading(false);
+        }
+    }
+
+
     async function getReport(event) {
         event.preventDefault()
         setError('')
+        setReport(null)
 
         if (!reports[form.ReportType]) {
             setError('Please select a report.')
@@ -51,7 +113,7 @@ function DataReport() {
 
         try {
             const res = await fetch(
-                `/api/report/${form.ReportType}`,
+                `/api/report/${form.ReportType}?format=json`,
                 {
                     method: 'POST',
                     credentials: 'include',
@@ -65,35 +127,16 @@ function DataReport() {
                 }
             )
 
+            const data = await res.json()
+
             if (!res.ok) {
-                const message = await res.text()
-                let errorMessage = 'Failed to generate report.'
-
-                try {
-                    const errorData = JSON.parse(message)
-                    errorMessage = errorData.error || errorMessage
-                } catch {
-                    errorMessage = message || errorMessage
-                }
-
-                throw new Error(errorMessage)
+                throw new Error(
+                    data.error || 'Failed to generate report.'
+                )
             }
 
-            const blob = await res.blob()
-            const url = window.URL.createObjectURL(blob)
-
-            const link = document.createElement('a')
-            link.href = url
-            link.download =
-                `${form.ReportType}_${form.StartDate}_to_${form.EndDate}.pdf`
-
-            document.body.appendChild(link)
-            link.click()
-            document.body.removeChild(link)
-
-            window.setTimeout(() => {
-                window.URL.revokeObjectURL(url)
-            }, 1000)
+            setReport(data)
+            setExpandedSections({})
 
         } catch (error) {
             setError(error.message || 'Failed to generate report.')
@@ -101,6 +144,7 @@ function DataReport() {
             setLoading(false)
         }
     }
+
 
     return (
         <div className="galleries-page">
@@ -164,9 +208,146 @@ function DataReport() {
                 </div>
 
                 <button type="submit" disabled={loading}>
-                    {loading ? 'Generating Report...' : 'Generate PDF Report'}
+                    {loading ? 'Generating Report...' : 'Generate Report'}
                 </button>
             </form>
+
+
+        
+            {report && (
+                <div className="report-results">
+                
+                    <div className="report-header">
+                        <h2>{report.title}</h2>
+            
+                        <p>
+                            Reporting Period: {report.startDate} to {report.endDate}
+                        </p>
+            
+                        <button
+                            type="button"
+                            onClick={downloadPDF}
+                            disabled={loading}
+                        >
+                            {loading ? 'Generating PDF...' : 'Download PDF'}
+                        </button>
+                    </div>
+            
+                    {report.sections.map((section, index) => {
+                        const isExpanded = !!expandedSections[index]
+                    
+                        const columns = section.rows.length > 0
+                            ? Object.keys(section.rows[0])
+                            : []
+                    
+                        const isRevenueSummary =
+                            section.title === 'Overall Revenue' &&
+                            section.rows.length > 0
+                    
+                        return (
+                            <div className="report-section" key={index}>
+                            
+                                <div className="report-section-layout">
+                        
+                                    {/* Section heading and table toggle */}
+                                    <div className="report-section-main">
+                        
+                                        <div className="report-section-heading">
+                                            <h3>{section.title}</h3>
+                        
+                                            <button
+                                                type="button"
+                                                className="minimize-button"
+                                                onClick={() => toggleSection(index)}
+                                            >
+                                                <span>
+                                                    {isExpanded ? 'Minimize' : 'Expand'}
+                                                </span>
+                        
+                                                <span>
+                                                    {isExpanded ? '▲' : '▼'}
+                                                </span>
+                                            </button>
+                                        </div>
+                        
+                                        {/* Summary is ALWAYS visible */}
+                                        <div className="report-summary">
+                        
+                                            {section.summary && (
+                                                <p>{section.summary}</p>
+                                            )}
+
+                                            {isRevenueSummary && (
+                                                <div className="summary-grid">
+                                                    {Object.entries(section.rows[0]).map(
+                                                        ([key, value]) => (
+                                                            <div
+                                                                className="summary-item"
+                                                                key={key}
+                                                            >
+                                                                <span>{key}</span>
+                                                                <strong>
+                                                                    ${Number(value).toFixed(2)}
+                                                                </strong>
+                                                            </div>
+                                                        )
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {!section.summary && !isRevenueSummary && (
+                                                <p>
+                                                    Total Records: {section.rows.length}
+                                                </p>
+                                            )}
+
+                                        </div>
+                                        
+                                    </div>
+                                        
+                                    {/* Table only appears when expanded */}
+                                    {isExpanded && (
+                                        <div className="report-table-container">
+                                        
+                                            {section.rows.length === 0 ? (
+                                                <p>No records found for this period.</p>
+                                            ) : (
+                                                <table className="report-table">
+                                                
+                                                    <thead>
+                                                        <tr>
+                                                            {columns.map(column => (
+                                                                <th key={column}>
+                                                                    {column}
+                                                                </th>
+                                                            ))}
+                                                        </tr>
+                                                    </thead>
+                                                        
+                                                    <tbody>
+                                                        {section.rows.map((row, rowIndex) => (
+                                                            <tr key={rowIndex}>
+                                                                {columns.map(column => (
+                                                                    <td key={column}>
+                                                                        {row[column] === null ||
+                                                                         row[column] === undefined
+                                                                            ? '—'
+                                                                            : String(row[column])}
+                                                                    </td>
+                                                                ))}
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
         </div>
     )
 }

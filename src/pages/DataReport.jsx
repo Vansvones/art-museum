@@ -9,6 +9,7 @@ function DataReport() {
     })
 
     const [report, setReport] = useState(null)
+    const [expandedSections, setExpandedSections] = useState({})
 
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
@@ -30,6 +31,12 @@ function DataReport() {
         setError('')
     }
 
+    function toggleSection(index) {
+        setExpandedSections(prev => ({
+            ...prev,
+            [index]: !prev[index]
+        }))
+    }
     
     async function downloadPDF() {
         if (!report) return;
@@ -129,6 +136,7 @@ function DataReport() {
             }
 
             setReport(data)
+            setExpandedSections({})
 
         } catch (error) {
             setError(error.message || 'Failed to generate report.')
@@ -205,81 +213,141 @@ function DataReport() {
             </form>
 
 
-        {report && (
-            <div className="report-results">
         
-                <div className="report-header">
-                    <h2>{report.title}</h2>
-
-                    <p>
-                        Reporting Period: {report.startDate} to {report.endDate}
-                    </p>
-
-                    <button
-                        type="button"
-                        onClick={downloadPDF}
-                        disabled={loading}
-                    >
-                        {loading ? 'Generating PDF...' : 'Download PDF'}
-                    </button>
-                </div>
-        
-                {report.sections.map((section, index) => {
+            {report && (
+                <div className="report-results">
                 
-                    const columns = section.rows.length > 0
-                        ? Object.keys(section.rows[0])
-                        : []
-                
-                    return (
-                        <div className="report-section" key={index}>
-                        
-                            <h3>{section.title}</h3>
+                    <div className="report-header">
+                        <h2>{report.title}</h2>
+            
+                        <p>
+                            Reporting Period: {report.startDate} to {report.endDate}
+                        </p>
+            
+                        <button
+                            type="button"
+                            onClick={downloadPDF}
+                            disabled={loading}
+                        >
+                            {loading ? 'Generating PDF...' : 'Download PDF'}
+                        </button>
+                    </div>
+            
+                    {report.sections.map((section, index) => {
+                        const isExpanded = !!expandedSections[index]
                     
-                            {section.summary && (
-                                <p className="report-summary">
-                                    {section.summary}
-                                </p>
-                            )}
-
-                            {section.rows.length === 0 ? (
-                                <p>No records found for this period.</p>
-                            ) : (
-                                <div className="report-table-container">
-                                
-                                    <table className="report-table">
+                        const columns = section.rows.length > 0
+                            ? Object.keys(section.rows[0])
+                            : []
+                    
+                        const isRevenueSummary =
+                            section.title === 'Overall Revenue' &&
+                            section.rows.length > 0
+                    
+                        return (
+                            <div className="report-section" key={index}>
                             
-                                        <thead>
-                                            <tr>
-                                                {columns.map(column => (
-                                                    <th key={column}>
-                                                        {column}
-                                                    </th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                            
-                                        <tbody>
-                                            {section.rows.map((row, rowIndex) => (
-                                                <tr key={rowIndex}>
-                                                    {columns.map(column => (
-                                                        <td key={column}>
-                                                            {row[column] === null ||
-                                                             row[column] === undefined
-                                                                ? '—'
-                                                                : String(row[column])}
-                                                        </td>
-                                                    ))}
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                <div className="report-section-layout">
+                        
+                                    {/* Section heading and table toggle */}
+                                    <div className="report-section-main">
+                        
+                                        <div className="report-section-heading">
+                                            <h3>{section.title}</h3>
+                        
+                                            <button
+                                                type="button"
+                                                className="minimize-button"
+                                                onClick={() => toggleSection(index)}
+                                            >
+                                                <span>
+                                                    {isExpanded ? 'Minimize' : 'Expand'}
+                                                </span>
+                        
+                                                <span>
+                                                    {isExpanded ? '▲' : '▼'}
+                                                </span>
+                                            </button>
+                                        </div>
+                        
+                                        {/* Summary is ALWAYS visible */}
+                                        <div className="report-summary">
+                        
+                                            {section.summary && (
+                                                <p>{section.summary}</p>
+                                            )}
+
+                                            {isRevenueSummary && (
+                                                <div className="summary-grid">
+                                                    {Object.entries(section.rows[0]).map(
+                                                        ([key, value]) => (
+                                                            <div
+                                                                className="summary-item"
+                                                                key={key}
+                                                            >
+                                                                <span>{key}</span>
+                                                                <strong>
+                                                                    ${Number(value).toFixed(2)}
+                                                                </strong>
+                                                            </div>
+                                                        )
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {!section.summary && !isRevenueSummary && (
+                                                <p>
+                                                    Total Records: {section.rows.length}
+                                                </p>
+                                            )}
+
+                                        </div>
+                                        
+                                    </div>
+                                        
+                                    {/* Table only appears when expanded */}
+                                    {isExpanded && (
+                                        <div className="report-table-container">
+                                        
+                                            {section.rows.length === 0 ? (
+                                                <p>No records found for this period.</p>
+                                            ) : (
+                                                <table className="report-table">
+                                                
+                                                    <thead>
+                                                        <tr>
+                                                            {columns.map(column => (
+                                                                <th key={column}>
+                                                                    {column}
+                                                                </th>
+                                                            ))}
+                                                        </tr>
+                                                    </thead>
+                                                        
+                                                    <tbody>
+                                                        {section.rows.map((row, rowIndex) => (
+                                                            <tr key={rowIndex}>
+                                                                {columns.map(column => (
+                                                                    <td key={column}>
+                                                                        {row[column] === null ||
+                                                                         row[column] === undefined
+                                                                            ? '—'
+                                                                            : String(row[column])}
+                                                                    </td>
+                                                                ))}
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
-                            )}
-                        </div>
-                    )
-                })}
-            </div>
-        )}
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
         </div>
     )
 }

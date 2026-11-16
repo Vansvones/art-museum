@@ -4671,6 +4671,7 @@ function generateReportPDF(res, type, report) {
     doc.end();
 }
 
+
 app.post('/api/report/:type', requireAuth, requireAdmin, async (req, res) => {
     const { type } = req.params;
     const { startDate, endDate } = req.body;
@@ -4704,11 +4705,20 @@ app.post('/api/report/:type', requireAuth, requireAdmin, async (req, res) => {
                 break;
         }
 
-        generateReportPDF(res, type, {
+        // Declare completeReport HERE, after generating reportData
+        const completeReport = {
             ...reportData,
             startDate,
             endDate
-        });
+        };
+
+        // Return JSON for frontend display
+        if (req.query.format === 'json') {
+            return res.status(200).json(completeReport);
+        }
+
+        // Otherwise, generate PDF
+        generateReportPDF(res, type, completeReport);
 
     } catch (error) {
         console.error('Report generation error:', error);
@@ -4720,6 +4730,7 @@ app.post('/api/report/:type', requireAuth, requireAdmin, async (req, res) => {
         }
     }
 });
+
 
 // Start the server
 if (process.env.NODE_ENV !== 'production') {

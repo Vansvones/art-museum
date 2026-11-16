@@ -31,6 +31,57 @@ function DataReport() {
     }
 
     
+    async function downloadPDF() {
+        if (!report) return;
+
+        setError('');
+        setLoading(true);
+
+        try {
+            const res = await fetch(
+                `/api/report/${form.ReportType}`,
+                {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        startDate: form.StartDate,
+                        endDate: form.EndDate
+                    })
+                }
+            );
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(
+                    data.error || 'Failed to download PDF.'
+                );
+            }
+
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.download =
+                `${form.ReportType}_${form.StartDate}_to_${form.EndDate}.pdf`;
+
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            window.URL.revokeObjectURL(url);
+
+        } catch (error) {
+            setError(error.message || 'Failed to download PDF.');
+        } finally {
+            setLoading(false);
+        }
+    }
+
+
     async function getReport(event) {
         event.preventDefault()
         setError('')
@@ -156,13 +207,21 @@ function DataReport() {
 
         {report && (
             <div className="report-results">
-            
+        
                 <div className="report-header">
                     <h2>{report.title}</h2>
-        
+
                     <p>
                         Reporting Period: {report.startDate} to {report.endDate}
                     </p>
+
+                    <button
+                        type="button"
+                        onClick={downloadPDF}
+                        disabled={loading}
+                    >
+                        {loading ? 'Generating PDF...' : 'Download PDF'}
+                    </button>
                 </div>
         
                 {report.sections.map((section, index) => {
